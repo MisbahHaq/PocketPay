@@ -21,10 +21,11 @@ internal sealed class JwtTokenService(IOptions<JwtTokenOptions> options, TimePro
 
         var claims = new List<Claim>
         {
+            // Standard short names, mapped back to ClaimTypes by JwtBearerOptions.MapInboundClaims.
+            // "sub" is what other JWT consumers expect; ICurrentUserService reads the mapped value.
             new(JwtRegisteredClaimNames.Sub, user.Id),
             new(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new(ClaimTypes.NameIdentifier, user.Id),
             new(ClaimTypes.Name, user.UserName ?? user.Email ?? string.Empty)
         };
 

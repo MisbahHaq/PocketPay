@@ -102,6 +102,39 @@ options.Lockout.AllowedForNewUsers = true;
                 // No cookie, no antiforgery token: this is a pure bearer-token API.
                 options.Events = new JwtBearerEvents
                 {
+                    // The default bearer challenge returns 401 with an empty body, which would make
+                    // authentication failures the only errors clients cannot parse as ProblemDetails.
+                    OnChallenge = async context =>
+                    {
+                        context.HandleResponse();
+
+                        if (context.Response.HasStarted)
+                            return;
+
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+
+                        if (!context.Response.Headers.ContainsKey("WWW-Authenticate"))
+                            context.Response.Headers.WWWAuthenticate = context.Options.Challenge;
+
+                        await ProblemDetailsWriter.WriteAsync(
+                            context.HttpContext,
+                            StatusCodes.Status401Unauthorized,
+                            "Unauthorized",
+                            "A valid access token is required. Sign in or refresh your token.");
+                    },
+
+                    OnForbidden = async context =>
+                    {
+                        if (context.Response.HasStarted)
+                            return;
+
+                        await ProblemDetailsWriter.WriteAsync(
+                            context.HttpContext,
+                            StatusCodes.Status403Forbidden,
+                            "Forbidden",
+                            "Your roles do not permit this operation.");
+                    },
+
                     OnMessageReceived = context =>
                     {
                         // Read the token from the query string only for SignalR-style transports,
