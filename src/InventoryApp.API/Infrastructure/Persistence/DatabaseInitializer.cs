@@ -32,5 +32,11 @@ public static class DatabaseInitializer
             await dbContext.Database.MigrateAsync(cancellationToken);
 
         await provider.GetRequiredService<DatabaseSeeder>().SeedAsync(cancellationToken);
+
+        // Sample catalogue data, development only. Keyed off the environment rather than a config
+        // flag: a flag can be switched on by accident, an environment name cannot. This also keeps
+        // the test database empty, so catalogue tests start from a known state.
+        if (environment.IsDevelopment())
+            await provider.GetRequiredService<CatalogSeeder>().SeedAsync(cancellationToken);
     }
 }

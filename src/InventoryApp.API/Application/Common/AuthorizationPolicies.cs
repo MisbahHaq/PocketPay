@@ -14,4 +14,17 @@ public static class AuthorizationPolicies
 
     /// <summary>Record stock movements (receipts, issues, transfers).</summary>
     public const string CanRecordMovements = nameof(CanRecordMovements);
+
+    /// <summary>
+    /// Create and edit products and categories. Admin and Manager, because editing the catalogue is
+    /// part of the day job; Staff consume the catalogue but do not author it.
+    /// </summary>
+    public const string CanManageCatalog = nameof(CanManageCatalog);
+
+    /// <summary>
+    /// Remove a product, or bring a removed one back. Admin only, and deliberately one policy for
+    /// both: a restore is as destructive as a delete, because it puts a product back in front of
+    /// buyers who were already told it was gone.
+    /// </summary>
+    public const string CanDeleteCatalog = nameof(CanDeleteCatalog);
 }

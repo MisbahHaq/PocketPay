@@ -37,6 +37,8 @@ public static class ApplicationServiceCollectionExtensions
 
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IProductService, ProductService>();
+        services.AddScoped<ICategoryService, CategoryService>();
 
         services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
 

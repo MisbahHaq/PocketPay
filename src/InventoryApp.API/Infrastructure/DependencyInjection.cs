@@ -243,6 +243,15 @@ options.Lockout.AllowedForNewUsers = true;
 
             options.AddPolicy(AuthorizationPolicies.CanRecordMovements, policy =>
                 policy.RequireRole(SystemRoles.Admin, SystemRoles.Manager, SystemRoles.Staff));
+
+            // Catalogue authoring is day-to-day work, so Manager is included here...
+            options.AddPolicy(AuthorizationPolicies.CanManageCatalog, policy =>
+                policy.RequireRole(SystemRoles.Admin, SystemRoles.Manager));
+
+            // ...but removing a product, or bringing one back, is Admin only. Both share the policy
+            // because a restore is as consequential as a delete.
+            options.AddPolicy(AuthorizationPolicies.CanDeleteCatalog, policy =>
+                policy.RequireRole(SystemRoles.Admin));
         });
 
         services.AddRateLimiter(options =>
@@ -300,6 +309,7 @@ options.Lockout.AllowedForNewUsers = true;
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<ApplicationDbContext>());
         services.AddScoped<DatabaseSeeder>();
+        services.AddScoped<CatalogSeeder>();
         services.AddScoped<UiNoticeService>();
         services.AddExceptionHandler<GlobalExceptionHandler>();
         services.AddProblemDetails();

@@ -110,10 +110,29 @@ public class AuthorizationTests(InventoryApiFactory factory) : IClassFixture<Inv
     /// Flips the final character of the signature, leaving a structurally valid JWT whose
     /// signature no longer matches the payload.
     /// </summary>
+    /// <summary>
+    /// Flips one character of the signature segment.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately not the last character. Base64url encodes 6 bits per character, and the final
+    /// character of a 32-byte signature has only 4 significant bits - the other 2 are padding that
+    /// the decoder discards. Rewriting it can therefore produce a different *string* that decodes to
+    /// the identical *signature*, which is a token that is still valid. Flipping a character in the
+    /// middle always changes the decoded bytes, so the test fails when the check is broken instead
+    /// of passing or failing depending on the random token it was handed.
+    /// </remarks>
     private static string TamperWithSignature(string accessToken)
     {
-        var lastCharacter = accessToken[^1];
-        var replacement = lastCharacter == 'A' ? 'B' : 'A';
-        return string.Concat(accessToken.AsSpan(0, accessToken.Length - 1), replacement.ToString());
+        var parts = accessToken.Split('.');
+
+        // Index 1 is the signature; 30 sits well inside it. Index 0 is the header, which is
+        // base64 of a fixed prefix, so tampering there tests header parsing rather than signing.
+        const int IndexToCorrupt = 30;
+
+        var signature = parts[1].ToCharArray();
+        signature[IndexToCorrupt] = signature[IndexToCorrupt] == 'A' ? 'B' : 'A';
+        parts[1] = new string(signature);
+
+        return string.Join('.', parts);
     }
 }
