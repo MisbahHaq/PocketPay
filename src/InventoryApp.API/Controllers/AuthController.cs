@@ -34,7 +34,7 @@ public sealed class AuthController(
 
     [HttpPost("login")]
     [AllowAnonymous]
-    [EnableRateLimiting(RateLimitPolicies.Auth)]
+    [EnableRateLimiting(RateLimitPolicies.Login)]
     [ProducesResponseType(typeof(TokenResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
@@ -46,7 +46,7 @@ public sealed class AuthController(
     /// <summary>Rotates the presented refresh token and returns a fresh pair.</summary>
     [HttpPost("refresh")]
     [AllowAnonymous]
-    [EnableRateLimiting(RateLimitPolicies.Auth)]
+    [EnableRateLimiting(RateLimitPolicies.Refresh)]
     [ProducesResponseType(typeof(TokenResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<TokenResponse>> Refresh(

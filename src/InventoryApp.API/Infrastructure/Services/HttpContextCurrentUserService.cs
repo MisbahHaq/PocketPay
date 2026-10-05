@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using InventoryApp.Application.Abstractions;
+using InventoryApp.Application.Common;
 
 namespace InventoryApp.Infrastructure.Services;
 
@@ -13,15 +14,11 @@ internal sealed class HttpContextCurrentUserService(IHttpContextAccessor httpCon
 
     public bool IsAuthenticated => Principal?.Identity?.IsAuthenticated == true;
 
-    public string? UserId =>
-        Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value
-        ?? Principal?.FindFirst("sub")?.Value;
+    public string? UserId => Principal?.FindFirst(AuthClaimTypes.UserId)?.Value;
 
-    public string? Email =>
-        Principal?.FindFirst(ClaimTypes.Email)?.Value
-        ?? Principal?.FindFirst("email")?.Value;
+    public string? Email => Principal?.FindFirst(AuthClaimTypes.Email)?.Value;
 
     public IReadOnlyCollection<string> Roles =>
-        Principal?.FindAll(ClaimTypes.Role).Select(claim => claim.Value).Distinct().ToArray()
+        Principal?.FindAll(AuthClaimTypes.Role).Select(claim => claim.Value).Distinct().ToArray()
         ?? [];
 }

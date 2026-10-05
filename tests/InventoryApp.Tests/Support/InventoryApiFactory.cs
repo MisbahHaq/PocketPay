@@ -22,12 +22,29 @@ public sealed class InventoryApiFactory : WebApplicationFactory<Program>
 
     private readonly SqliteConnection _connection;
 
+    /// <param name="loginPermitLimit">
+    /// Left at a very high value by default so the limiter never masks the behaviour under test.
+    /// The rate-limiting tests construct the factory with small limits to exercise the 429 path.
+    /// </param>
     public InventoryApiFactory()
+        : this(10000, 10000)
     {
+    }
+
+    // Internal rather than public because xUnit's IClassFixture activation rejects fixture types
+    // that expose more than one public constructor; the rate-limiting tests construct this directly.
+    internal InventoryApiFactory(int loginPermitLimit, int refreshPermitLimit)
+    {
+        _loginPermitLimit = loginPermitLimit;
+        _refreshPermitLimit = refreshPermitLimit;
+
         // The database lives in this connection, so it must stay open for the factory's lifetime.
         _connection = new SqliteConnection("DataSource=:memory:");
         _connection.Open();
     }
+
+    private readonly int _loginPermitLimit;
+    private readonly int _refreshPermitLimit;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -45,10 +62,8 @@ public sealed class InventoryApiFactory : WebApplicationFactory<Program>
                 ["SeedAdmin:Email"] = AdminEmail,
                 ["SeedAdmin:Password"] = AdminPassword,
 
-                // Raised well above the number of requests these tests make, including the
-                // deliberate wrong-password ones, so the limiter never masks the behaviour under test.
-                ["RateLimiting:LoginPermitLimit"] = "10000",
-                ["RateLimiting:RefreshPermitLimit"] = "10000"
+                ["RateLimiting:LoginPermitLimit"] = _loginPermitLimit.ToString(),
+                ["RateLimiting:RefreshPermitLimit"] = _refreshPermitLimit.ToString()
             }));
 
         builder.ConfigureServices(services =>

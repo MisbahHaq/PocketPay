@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using InventoryApp.Application.Common;
 using InventoryApp.Application.Dtos;
 using InventoryApp.Domain.Security;
 using InventoryApp.Tests.Support;
@@ -43,7 +44,9 @@ public class AuthorizationTests(InventoryApiFactory factory) : IClassFixture<Inv
         var response = await _client.GetAsync(path, tokens.AccessToken, None);
 
         Assert.Equal(expected, response.StatusCode);
-        Assert.True(response.IsProblemDetails());
+
+        // Errors carry the same ProblemDetails contract as every other failure in the API.
+        Assert.Equal(expected != HttpStatusCode.OK, response.IsProblemDetails());
     }
 
     [Theory]
@@ -84,7 +87,7 @@ public class AuthorizationTests(InventoryApiFactory factory) : IClassFixture<Inv
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Equal("Forbidden", problem.GetProperty("title").GetString());
-        Assert.NotNull(problem.TryGetProperty("traceId", out _));
+        Assert.True(problem.TryGetProperty("traceId", out _));
     }
 
     [Fact]
@@ -95,9 +98,12 @@ public class AuthorizationTests(InventoryApiFactory factory) : IClassFixture<Inv
         var response = await _client.GetAsync(RecordMovementsPath, tokens.AccessToken, None);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
 
-        var roles = body.GetProperty("Roles").EnumerateArray().Select(role => role.GetString()).ToArray();
+        // Responses are camelCased, so claims are read under their JSON names.
+        var roles = body.GetProperty("roles").EnumerateArray().Select(role => role.GetString()!).ToArray();
         Assert.Equal([SystemRoles.Staff], roles);
-        Assert.Equal(SystemRoles.Staff, body.GetProperty("Policy").GetString());
+
+        // The endpoint echoes back which policy granted access, which is what was authorized.
+        Assert.Equal(AuthorizationPolicies.CanRecordMovements, body.GetProperty("policy").GetString());
     }
 
     /// <summary>

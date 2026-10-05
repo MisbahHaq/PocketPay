@@ -49,13 +49,20 @@ public class AuthFlowTests(InventoryApiFactory factory) : IClassFixture<Inventor
         Assert.Equal(HttpStatusCode.Unauthorized, wrongPassword.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, unknownEmail.StatusCode);
 
-        // Byte-identical bodies: the endpoint cannot be used to discover registered addresses.
-        Assert.Equal(
-            await wrongPassword.Content.ReadAsStringAsync(),
-            await unknownEmail.Content.ReadAsStringAsync());
+        var wrongPasswordProblem = await wrongPassword.ReadProblemAsync();
+        var unknownEmailProblem = await unknownEmail.ReadProblemAsync();
 
-        var problem = await unknownEmail.ReadProblemAsync();
-        Assert.Equal("Unauthorized", problem.GetProperty("title").GetString());
+        // Same status, title and detail: the response cannot be used to discover which addresses
+        // have accounts. Only the per-request traceId differs, which is by design.
+        Assert.Equal(
+            wrongPasswordProblem.GetProperty("title").GetString(),
+            unknownEmailProblem.GetProperty("title").GetString());
+        Assert.Equal(
+            wrongPasswordProblem.GetProperty("detail").GetString(),
+            unknownEmailProblem.GetProperty("detail").GetString());
+
+        Assert.Equal("Unauthorized", unknownEmailProblem.GetProperty("title").GetString());
+        Assert.Equal("Invalid email or password.", unknownEmailProblem.GetProperty("detail").GetString());
     }
 
     [Fact]

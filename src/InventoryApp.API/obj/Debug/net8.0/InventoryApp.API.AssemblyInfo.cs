@@ -10,10 +10,11 @@
 using System;
 using System.Reflection;
 
+[assembly: Microsoft.Extensions.Configuration.UserSecrets.UserSecretsIdAttribute("cb531868-a1d3-49c8-833a-ecf34bb85e2d")]
 [assembly: System.Reflection.AssemblyCompanyAttribute("InventoryApp.API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+fadee9acee2c6c5a7748b30aafab1f75a6668c87")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e6e5125163834a205e9e3d90b4edeec9996cd90b")]
 [assembly: System.Reflection.AssemblyProductAttribute("InventoryApp.API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("InventoryApp.API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

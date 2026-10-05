@@ -1,9 +1,10 @@
-using FluentValidation;
+﻿using FluentValidation;
 using InventoryApp.Application.Abstractions;
 using InventoryApp.Application.Common.Exceptions;
 using InventoryApp.Application.Common.Options;
 using InventoryApp.Application.Dtos;
 using InventoryApp.Application.Security;
+using InventoryApp.Application.Validators;
 using InventoryApp.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
@@ -29,7 +30,7 @@ public sealed class AuthService(
 {
     public async Task<UserResponse> RegisterAsync(RegisterUserRequest request, CancellationToken cancellationToken)
     {
-        await registerValidator.ValidateAsync(request, cancellationToken);
+        await registerValidator.EnsureValidAsync(request, cancellationToken);
 
         var email = Normalize(request.Email);
         var user = new ApplicationUser
@@ -63,7 +64,7 @@ public sealed class AuthService(
 
     public async Task<TokenResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
     {
-        await loginValidator.ValidateAsync(request, cancellationToken);
+        await loginValidator.EnsureValidAsync(request, cancellationToken);
 
         var user = await userManager.FindByEmailAsync(request.Email);
 
@@ -100,7 +101,7 @@ public sealed class AuthService(
 
     public async Task<TokenResponse> RefreshAsync(RefreshTokenRequest request, CancellationToken cancellationToken)
     {
-        await refreshValidator.ValidateAsync(request, cancellationToken);
+        await refreshValidator.EnsureValidAsync(request, cancellationToken);
 
         var now = timeProvider.GetUtcNow();
         var presentedHash = RefreshTokenGenerator.Hash(request.RefreshToken);
@@ -147,7 +148,7 @@ public sealed class AuthService(
 
     public async Task LogoutAsync(LogoutRequest request, CancellationToken cancellationToken)
     {
-        await logoutValidator.ValidateAsync(request, cancellationToken);
+        await logoutValidator.EnsureValidAsync(request, cancellationToken);
 
         var presentedHash = RefreshTokenGenerator.Hash(request.RefreshToken);
         var stored = await refreshTokens.GetByTokenHashAsync(presentedHash, cancellationToken);

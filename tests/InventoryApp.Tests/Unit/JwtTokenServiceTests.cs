@@ -1,6 +1,7 @@
-using System.IdentityModel.Tokens.Jwt;
+﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using InventoryApp.Application.Common;
 using InventoryApp.Application.Common.Options;
 using InventoryApp.Domain.Entities;
 using InventoryApp.Domain.Security;
@@ -21,7 +22,9 @@ public class JwtTokenServiceTests
     private const string Audience = "InventoryApp.Clients";
     private const string SigningKey = "unit-test-signing-key-of-at-least-32-characters";
 
-    private static readonly DateTimeOffset Now = new(2026, 3, 1, 12, 0, 0, TimeSpan.Zero);
+    // Anchored to the real clock: lifetime validation inside the token handler uses the system
+    // clock, so a token minted in the distant past would be rejected as expired.
+    private static readonly DateTimeOffset Now = DateTimeOffset.UtcNow;
 
     [Fact]
     public void CreateAccessToken_EmbedsUserIdEmailAndEveryRole()
@@ -32,12 +35,12 @@ public class JwtTokenServiceTests
 
         var token = Read(result.Token);
 
-        Assert.Equal("user-42", ClaimValue(token, JwtRegisteredClaimNames.Sub));
-        Assert.Equal("staff@test.local", ClaimValue(token, "email"));
-        Assert.NotEmpty(ClaimValue(token, JwtRegisteredClaimNames.Jti));
+        Assert.Equal("user-42", ClaimValue(token, AuthClaimTypes.UserId));
+        Assert.Equal("staff@test.local", ClaimValue(token, AuthClaimTypes.Email));
+        Assert.NotEmpty(ClaimValue(token, AuthClaimTypes.TokenId));
         Assert.Equal(
             [SystemRoles.Manager, SystemRoles.Staff],
-            RolesIn(token).OrderBy(role => role));
+            RolesIn(token).OrderBy(role => role, StringComparer.Ordinal));
     }
 
     [Fact]
@@ -75,8 +78,9 @@ public class JwtTokenServiceTests
 
         var principal = Validate(result.Token, SigningKey);
 
-        Assert.Equal("user-42", principal.FindFirst(ClaimTypes.NameIdentifier)?.Value);
-        Assert.Equal("staff@test.local", principal.FindFirst(ClaimTypes.Email)?.Value);
+        // MapInboundClaims is off in production too, so the claims are checked by their real names.
+        Assert.Equal("user-42", principal.FindFirst(AuthClaimTypes.UserId)?.Value);
+        Assert.Equal("staff@test.local", principal.FindFirst(AuthClaimTypes.Email)?.Value);
         Assert.True(principal.IsInRole(SystemRoles.Admin));
         Assert.True(principal.Identity?.IsAuthenticated);
     }
@@ -117,8 +121,8 @@ public class JwtTokenServiceTests
     {
         var service = CreateService();
 
-        var first = ClaimValue(Read(service.CreateAccessToken(NewUser(), [SystemRoles.Staff]).Token), JwtRegisteredClaimNames.Jti);
-        var second = ClaimValue(Read(service.CreateAccessToken(NewUser(), [SystemRoles.Staff]).Token), JwtRegisteredClaimNames.Jti);
+        var first = ClaimValue(Read(service.CreateAccessToken(NewUser(), [SystemRoles.Staff]).Token), AuthClaimTypes.TokenId);
+        var second = ClaimValue(Read(service.CreateAccessToken(NewUser(), [SystemRoles.Staff]).Token), AuthClaimTypes.TokenId);
 
         Assert.NotEqual(first, second);
     }
@@ -149,7 +153,7 @@ public class JwtTokenServiceTests
         token.Claims.Single(claim => claim.Type == type).Value;
 
     private static IEnumerable<string> RolesIn(JwtSecurityToken token) =>
-        token.Claims.Where(claim => claim.Type == "role").Select(claim => claim.Value);
+        token.Claims.Where(claim => claim.Type == AuthClaimTypes.Role).Select(claim => claim.Value);
 
     private static TokenValidationParameters ValidationParameters(string signingKey) => new()
     {
@@ -162,8 +166,8 @@ public class JwtTokenServiceTests
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
         RequireExpirationTime = true,
         RequireSignedTokens = true,
-        RoleClaimType = ClaimTypes.Role,
-        NameClaimType = ClaimTypes.Name,
+        RoleClaimType = AuthClaimTypes.Role,
+        NameClaimType = AuthClaimTypes.Name,
         ClockSkew = TimeSpan.FromSeconds(30)
     };
 
@@ -172,7 +176,8 @@ public class JwtTokenServiceTests
 
     private static ClaimsPrincipal Validate(string token, TokenValidationParameters parameters)
     {
-        var handler = new JwtSecurityTokenHandler { MapInboundClaims = true };
+        // MapInboundClaims is off in production, so the handler must not remap claims either.
+        var handler = new JwtSecurityTokenHandler { MapInboundClaims = false };
         return handler.ValidateToken(token, parameters, out _);
     }
 }

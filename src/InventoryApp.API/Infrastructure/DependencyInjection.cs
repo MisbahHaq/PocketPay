@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 using InventoryApp.Application.Abstractions;
@@ -70,7 +69,9 @@ options.Lockout.AllowedForNewUsers = true;
                 var jwt = configuration.GetSection(JwtTokenOptions.SectionName).Get<JwtTokenOptions>()
                     ?? throw new InvalidOperationException("The Jwt configuration section is missing.");
 
-                options.MapInboundClaims = true;
+                // Claims are written and read under their standard short names, so the framework's static
+                // ClaimTypes URI mapping is switched off rather than relied upon.
+                options.MapInboundClaims = false;
 
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
@@ -91,8 +92,8 @@ options.Lockout.AllowedForNewUsers = true;
                     RequireExpirationTime = true,
                     RequireSignedTokens = true,
 
-                    RoleClaimType = ClaimTypes.Role,
-                    NameClaimType = ClaimTypes.Name,
+                    RoleClaimType = AuthClaimTypes.Role,
+                    NameClaimType = AuthClaimTypes.Name,
 
                     // Tokens are short-lived, so tightening the default 5-minute tolerance costs
                     // nothing and shortens the window in which a dead token still works.
@@ -172,18 +173,21 @@ options.Lockout.AllowedForNewUsers = true;
             var limits = configuration.GetSection(RateLimitOptions.SectionName).Get<RateLimitOptions>()
                 ?? new RateLimitOptions();
 
-            // One policy for both credential endpoints: brute-force login and token replay are the
-            // same threat, and a shared budget is easier to reason about than two.
-            options.AddPolicy(RateLimitPolicies.Auth, httpContext =>
-                RateLimitPartition.GetFixedWindowLimiter(
+            // Per-IP fixed windows. Behind a reverse proxy RemoteIpAddress is the proxy's address, so
+            // the host must enable forwarded headers for this to be per-client rather than per-proxy.
+            Func<HttpContext, RateLimitPartition<string>> PerRemoteIp(int permitLimit) =>
+                httpContext => RateLimitPartition.GetFixedWindowLimiter(
                     httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
                     _ => new FixedWindowRateLimiterOptions
                     {
-                        PermitLimit = limits.LoginPermitLimit,
+                        PermitLimit = permitLimit,
                         Window = TimeSpan.FromSeconds(limits.WindowSeconds),
                         QueueLimit = 0,
                         QueueProcessingOrder = QueueProcessingOrder.OldestFirst
-                    }));
+                    });
+
+            options.AddPolicy(RateLimitPolicies.Login, PerRemoteIp(limits.LoginPermitLimit));
+            options.AddPolicy(RateLimitPolicies.Refresh, PerRemoteIp(limits.RefreshPermitLimit));
 
             options.OnRejected = async (context, cancellationToken) =>
             {
@@ -192,14 +196,21 @@ options.Lockout.AllowedForNewUsers = true;
                 if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
                     context.HttpContext.Response.Headers.RetryAfter = ((int)retryAfter.TotalSeconds).ToString();
 
+                // Matches the shape produced by the global exception handler so clients only ever
+                // have to understand one error contract.
+                var problem = new ProblemDetails
+                {
+                    Status = StatusCodes.Status429TooManyRequests,
+                    Title = "Too many requests",
+                    Detail = "Rate limit exceeded. Retry after the indicated delay.",
+                    Instance = context.HttpContext.Request.Path
+                };
+                problem.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+
                 await context.HttpContext.Response.WriteAsJsonAsync(
-                    new ProblemDetails
-                    {
-                        Status = StatusCodes.Status429TooManyRequests,
-                        Title = "Too many requests",
-                        Detail = "Rate limit exceeded. Retry after the indicated delay.",
-                        Instance = context.HttpContext.Request.Path
-                    },
+                    problem,
+                    options: null,
+                    contentType: "application/problem+json",
                     cancellationToken);
             };
         });

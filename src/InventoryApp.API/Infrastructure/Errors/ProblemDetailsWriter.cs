@@ -10,6 +10,8 @@ namespace InventoryApp.Infrastructure.Errors;
 /// </summary>
 internal static class ProblemDetailsWriter
 {
+    private const string ProblemDetailsMediaType = "application/problem+json";
+
     public static Task WriteAsync(HttpContext httpContext, int statusCode, string title, string detail)
     {
         var problemDetails = new ProblemDetails
@@ -21,6 +23,12 @@ internal static class ProblemDetailsWriter
             Extensions = { ["traceId"] = Activity.Current?.Id ?? httpContext.TraceIdentifier }
         };
 
-        return httpContext.Response.WriteAsJsonAsync(problemDetails, httpContext.RequestAborted);
+        // The explicit media type matters: clients switch on it to decide whether the body is
+        // an error, and the default for WriteAsJsonAsync is plain application/json.
+        return httpContext.Response.WriteAsJsonAsync(
+            problemDetails,
+            options: null,
+            contentType: ProblemDetailsMediaType,
+            cancellationToken: httpContext.RequestAborted);
     }
 }

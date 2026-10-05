@@ -31,6 +31,20 @@ internal sealed class TestUserManagerHarness
         var emailStore = Store.As<IUserEmailStore<ApplicationUser>>();
         var roleStore = Store.As<IUserRoleStore<ApplicationUser>>();
         var securityStampStore = Store.As<IUserSecurityStampStore<ApplicationUser>>();
+        var lockoutStore = Store.As<IUserLockoutStore<ApplicationUser>>();
+        var passwordStore = Store.As<IUserPasswordStore<ApplicationUser>>();
+
+        passwordStore
+            .Setup(store => store.GetPasswordHashAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()))
+            .Returns((ApplicationUser user, CancellationToken _) => Task.FromResult(user.PasswordHash));
+
+        passwordStore
+            .Setup(store => store.SetPasswordHashAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns((ApplicationUser user, string hash, CancellationToken _) =>
+            {
+                user.PasswordHash = hash;
+                return Task.CompletedTask;
+            });
 
         Store.Setup(store => store.FindByIdAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns((string userId, CancellationToken _) =>
@@ -47,8 +61,52 @@ internal sealed class TestUserManagerHarness
                     : (IList<string>)new List<string>()));
 
         securityStampStore
+            .Setup(store => store.GetSecurityStampAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()))
+            .Returns((ApplicationUser user, CancellationToken _) => Task.FromResult(user.SecurityStamp));
+
+        securityStampStore
             .Setup(store => store.SetSecurityStampAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .Returns((ApplicationUser user, string stamp, CancellationToken _) =>
+            {
+                user.SecurityStamp = stamp;
+                return Task.CompletedTask;
+            });
+
+        // Lockout state is tracked on the user, exactly as the EF store does it.
+        lockoutStore
+            .Setup(store => store.GetLockoutEndDateAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()))
+            .Returns((ApplicationUser user, CancellationToken _) => Task.FromResult(user.LockoutEnd));
+
+        lockoutStore
+            .Setup(store => store.SetLockoutEndDateAsync(
+                It.IsAny<ApplicationUser>(),
+                It.IsAny<DateTimeOffset?>(),
+                It.IsAny<CancellationToken>()))
+            .Returns((ApplicationUser user, DateTimeOffset? lockoutEnd, CancellationToken _) =>
+            {
+                user.LockoutEnd = lockoutEnd;
+                return Task.CompletedTask;
+            });
+
+        lockoutStore
+            .Setup(store => store.IncrementAccessFailedCountAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()))
+            .Returns((ApplicationUser user, CancellationToken _) =>
+            {
+                user.AccessFailedCount++;
+                return Task.FromResult(user.AccessFailedCount);
+            });
+
+        lockoutStore
+            .Setup(store => store.ResetAccessFailedCountAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()))
+            .Returns((ApplicationUser user, CancellationToken _) =>
+            {
+                user.AccessFailedCount = 0;
+                return Task.CompletedTask;
+            });
+
+        lockoutStore
+            .Setup(store => store.GetAccessFailedCountAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()))
+            .Returns((ApplicationUser user, CancellationToken _) => Task.FromResult(user.AccessFailedCount));
 
         Store.Setup(store => store.UpdateAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(IdentityResult.Success);
@@ -98,6 +156,9 @@ internal sealed class TestUserManagerHarness
             FullName = "Test User",
             CreatedAt = DateTimeOffset.UtcNow,
             IsActive = isActive,
+            // Identity insists on a non-null stamp when it refreshes one after a failed login.
+            SecurityStamp = Guid.NewGuid().ToString(),
+            ConcurrencyStamp = Guid.NewGuid().ToString(),
             PasswordHash = PasswordHasher.HashPassword(new ApplicationUser(), password)
         };
 
