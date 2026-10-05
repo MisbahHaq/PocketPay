@@ -1,0 +1,185 @@
+using System.Security.Claims;
+using System.Text;
+using System.Threading.RateLimiting;
+using InventoryApp.Application.Abstractions;
+using InventoryApp.Application.Common;
+using InventoryApp.Application.Common.Options;
+using InventoryApp.Domain.Entities;
+using InventoryApp.Domain.Security;
+using InventoryApp.Infrastructure.Errors;
+using InventoryApp.Infrastructure.Persistence;
+using InventoryApp.Infrastructure.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
+
+namespace InventoryApp.Infrastructure;
+
+public static class InfrastructureServiceCollectionExtensions
+{
+    /// <summary>
+    /// Registers everything technology-specific: EF Core, Identity, JWT bearer authentication,
+    /// authorization policies, rate limiting and the implementations of the Application abstractions.
+    /// </summary>
+    public static IServiceCollection AddInfrastructureServices(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var connectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.");
+
+        services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString));
+
+        services.AddIdentityCore<ApplicationUser>(options =>
+            {
+                // Single source of truth for password strength: RegisterUserRequestValidator reads
+                // these same values, so the rules cannot drift between the two layers.
+                options.Password.RequiredLength = 12;
+                options.Password.RequireDigit = true;
+                options.Password.RequireLowercase = true;
+                options.Password.RequireUppercase = true;
+                options.Password.RequireNonAlphanumeric = true;
+                options.Password.RequiredUniqueChars = 4;
+
+                // Lockout is on by default: IdentityUser.LockoutEnabled is true and the EF store persists the
+// lockout end stamp, so no extra enable flag is needed here.
+options.Lockout.AllowedForNewUsers = true;
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+
+                options.User.RequireUniqueEmail = true;
+            })
+            .AddRoles<IdentityRole>()
+            .AddEntityFrameworkStores<ApplicationDbContext>()
+            .AddDefaultTokenProviders();
+
+        services.AddScoped<IPasswordHasher<ApplicationUser>, PasswordHasher<ApplicationUser>>();
+
+        services.Configure<JwtTokenOptions>(configuration.GetSection(JwtTokenOptions.SectionName));
+
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
+            {
+                var jwt = configuration.GetSection(JwtTokenOptions.SectionName).Get<JwtTokenOptions>()
+                    ?? throw new InvalidOperationException("The Jwt configuration section is missing.");
+
+                options.MapInboundClaims = true;
+
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidIssuer = jwt.Issuer,
+
+                    ValidateAudience = true,
+                    ValidAudience = jwt.Audience,
+
+                    ValidateLifetime = true,
+
+                    // The signature check is what makes the claims trustworthy: without it a caller
+                    // could hand us an unsigned token containing the Admin role.
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey)),
+
+                    // Every validation must be on, or an unverified claim leaks through.
+                    RequireExpirationTime = true,
+                    RequireSignedTokens = true,
+
+                    RoleClaimType = ClaimTypes.Role,
+                    NameClaimType = ClaimTypes.Name,
+
+                    // Tokens are short-lived, so tightening the default 5-minute tolerance costs
+                    // nothing and shortens the window in which a dead token still works.
+                    ClockSkew = TimeSpan.FromSeconds(30)
+                };
+
+                // No cookie, no antiforgery token: this is a pure bearer-token API.
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        // Read the token from the query string only for SignalR-style transports,
+                        // which cannot set headers.
+                        var accessToken = context.Request.Query["access_token"];
+                        if (!string.IsNullOrEmpty(accessToken)
+                            && context.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                        {
+                            context.Token = accessToken;
+                        }
+
+                        return Task.CompletedTask;
+                    }
+                };
+            });
+
+        services.AddAuthorization(options =>
+        {
+            // Policies, not role strings in attributes: the requirement is named and centralised here,
+            // and adding a role later is a one-line change in this file.
+            options.AddPolicy(AuthorizationPolicies.CanManageUsers, policy =>
+                policy.RequireRole(SystemRoles.Admin));
+
+            options.AddPolicy(AuthorizationPolicies.CanApproveAdjustments, policy =>
+                policy.RequireRole(SystemRoles.Admin, SystemRoles.Manager));
+
+            options.AddPolicy(AuthorizationPolicies.CanRecordMovements, policy =>
+                policy.RequireRole(SystemRoles.Admin, SystemRoles.Manager, SystemRoles.Staff));
+        });
+
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+            var limits = configuration.GetSection(RateLimitOptions.SectionName).Get<RateLimitOptions>()
+                ?? new RateLimitOptions();
+
+            // One policy for both credential endpoints: brute-force login and token replay are the
+            // same threat, and a shared budget is easier to reason about than two.
+            options.AddPolicy(RateLimitPolicies.Auth, httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = limits.LoginPermitLimit,
+                        Window = TimeSpan.FromSeconds(limits.WindowSeconds),
+                        QueueLimit = 0,
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+                    }));
+
+            options.OnRejected = async (context, cancellationToken) =>
+            {
+                context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+
+                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+                    context.HttpContext.Response.Headers.RetryAfter = ((int)retryAfter.TotalSeconds).ToString();
+
+                await context.HttpContext.Response.WriteAsJsonAsync(
+                    new ProblemDetails
+                    {
+                        Status = StatusCodes.Status429TooManyRequests,
+                        Title = "Too many requests",
+                        Detail = "Rate limit exceeded. Retry after the indicated delay.",
+                        Instance = context.HttpContext.Request.Path
+                    },
+                    cancellationToken);
+            };
+        });
+
+        services.AddHttpContextAccessor();
+        services.AddScoped<ICurrentUserService, HttpContextCurrentUserService>();
+        services.AddSingleton<ITokenService, JwtTokenService>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<ApplicationDbContext>());
+        services.AddScoped<DatabaseSeeder>();
+        services.AddExceptionHandler<GlobalExceptionHandler>();
+        services.AddProblemDetails();
+
+        return services;
+    }
+}
