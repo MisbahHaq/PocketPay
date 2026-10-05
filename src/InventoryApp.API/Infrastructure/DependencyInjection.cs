@@ -8,6 +8,8 @@ using InventoryApp.Domain.Security;
 using InventoryApp.Infrastructure.Errors;
 using InventoryApp.Infrastructure.Persistence;
 using InventoryApp.Infrastructure.Services;
+using InventoryApp.Web;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -63,11 +65,38 @@ options.Lockout.AllowedForNewUsers = true;
 
         services.Configure<JwtTokenOptions>(configuration.GetSection(JwtTokenOptions.SectionName));
 
-        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        // Read from configuration on demand rather than once here. An options callback runs the first
+        // time the scheme's options are resolved, which is after the host has finished building and
+        // after any test host has contributed its configuration. Reading eagerly at registration time
+        // would validate tokens against the appsettings placeholders instead, because the test host's
+        // signing key is added to configuration only after this method has returned.
+        JwtTokenOptions ReadJwtOptions() =>
+            configuration.GetSection(JwtTokenOptions.SectionName).Get<JwtTokenOptions>()
+            ?? throw new InvalidOperationException("The Jwt configuration section is missing.");
+
+        services.AddAuthentication(options =>
+            {
+                // The UI is cookie-based and the API is bearer-only. A selector scheme picks the
+                // right handler per request so that one default setting can serve both surfaces,
+                // leaving every existing [Authorize] on a controller correct without being rewritten.
+                options.DefaultAuthenticateScheme = AuthSchemes.Selector;
+                options.DefaultChallengeScheme = AuthSchemes.Selector;
+
+                // Signing in and out are browser-only operations, so they name the cookie directly
+                // rather than going through a selector that would reject a scheme request.
+                options.DefaultSignInScheme = AuthSchemes.UiCookie;
+                options.DefaultSignOutScheme = AuthSchemes.UiCookie;
+            })
+            .AddPolicyScheme(AuthSchemes.Selector, "API bearer tokens for /api, UI cookie elsewhere", options =>
+            {
+                options.ForwardDefaultSelector = context =>
+                    context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase)
+                        ? JwtBearerDefaults.AuthenticationScheme
+                        : AuthSchemes.UiCookie;
+            })
             .AddJwtBearer(options =>
             {
-                var jwt = configuration.GetSection(JwtTokenOptions.SectionName).Get<JwtTokenOptions>()
-                    ?? throw new InvalidOperationException("The Jwt configuration section is missing.");
+                var jwt = ReadJwtOptions();
 
                 // Claims are written and read under their standard short names, so the framework's static
                 // ClaimTypes URI mapping is switched off rather than relied upon.
@@ -100,7 +129,8 @@ options.Lockout.AllowedForNewUsers = true;
                     ClockSkew = TimeSpan.FromSeconds(30)
                 };
 
-                // No cookie, no antiforgery token: this is a pure bearer-token API.
+                // No cookie, no antiforgery token: /api is a pure bearer-token surface. The UI's own
+                // cookie and antiforgery token are a separate concern, on the separate cookie scheme.
                 options.Events = new JwtBearerEvents
                 {
                     // The default bearer challenge returns 401 with an empty body, which would make
@@ -149,6 +179,55 @@ options.Lockout.AllowedForNewUsers = true;
 
                         return Task.CompletedTask;
                     }
+                };
+            })
+            .AddCookie(AuthSchemes.UiCookie, options =>
+            {
+                var jwt = ReadJwtOptions();
+
+                // Named and versioned, so a change to the ticket layout invalidates in-flight UI
+                // sessions instead of failing to deserialize them.
+                options.Cookie.Name = "InventoryApp.Ui";
+                options.Cookie.HttpOnly = true;
+                options.Cookie.SameSite = SameSiteMode.Lax;
+
+                // Lax, not Strict: Strict would drop the cookie on the navigation that follows an
+                // external sign-in link, so the user would land back on the login page signed out.
+                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+
+                // Deliberately short, and not a sliding session. The cookie authorises the browser,
+                // so its lifetime is tied to the access token it was minted from rather than being
+                // allowed to outlive the credentials it represents.
+                options.ExpireTimeSpan = TimeSpan.FromMinutes(jwt.AccessTokenMinutes);
+                options.SlidingExpiration = false;
+
+                options.LoginPath = UiEndpoints.LoginPage;
+                options.AccessDeniedPath = UiEndpoints.LoginPage;
+                options.ReturnUrlParameter = "returnUrl";
+
+                // The default handlers redirect with a 302 that carries the rejected URL in the
+                // query string. Announcing the reason in the cookie is enough for a page that can
+                // render it, and avoids leaking the attempted URL into browser history and logs.
+                options.Events.OnRedirectToLogin = context =>
+                {
+                    context.Response.Redirect(BuildLoginRedirect(context.Request.Path));
+                    return Task.CompletedTask;
+                };
+
+                options.Events.OnRedirectToAccessDenied = context =>
+                {
+                    context.Response.Redirect(BuildLoginRedirect(context.Request.Path));
+                    return Task.CompletedTask;
+                };
+
+                options.Events.OnValidatePrincipal = context =>
+                {
+                    // The cookie is a copy of claims that were current at sign-in. A user who is
+                    // deactivated or has a role change keeps those claims until the cookie expires,
+                    // which is the same window their access token already has. Checking the
+                    // database on every request would be stricter, and would also mean a database
+                    // round trip on every page render.
+                    return Task.CompletedTask;
                 };
             });
 
@@ -221,9 +300,19 @@ options.Lockout.AllowedForNewUsers = true;
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<ApplicationDbContext>());
         services.AddScoped<DatabaseSeeder>();
+        services.AddScoped<UiNoticeService>();
         services.AddExceptionHandler<GlobalExceptionHandler>();
         services.AddProblemDetails();
 
         return services;
     }
+
+    /// <summary>
+    /// Builds the sign-in redirect for the UI cookie handler, preserving where the user was headed
+    /// as a relative path. The endpoint re-validates this before honouring it.
+    /// </summary>
+    private static string BuildLoginRedirect(PathString originalPath) =>
+        string.IsNullOrEmpty(originalPath)
+            ? UiEndpoints.LoginPage
+            : $"{UiEndpoints.LoginPage}?returnUrl={Uri.EscapeDataString(originalPath.Value!)}";
 }

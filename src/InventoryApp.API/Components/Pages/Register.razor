@@ -1,0 +1,99 @@
+@page "/register"
+@attribute [Authorize(Policy = AuthorizationPolicies.CanManageUsers)]
+
+@using Microsoft.Extensions.Options
+
+@inject UiNoticeService Notices
+@inject IHttpContextAccessor HttpContextAccessor
+@inject IOptions<Microsoft.AspNetCore.Identity.IdentityOptions> IdentityOptions
+
+<PageTitle>Register a user</PageTitle>
+
+<h1>Register a user</h1>
+
+<p class="muted">Provisions an account with a starting role. Only administrators can reach this page.</p>
+
+@if (_notice is not null)
+{
+    <div class="notice notice-error" role="alert">@_notice</div>
+}
+
+<form method="post" action="/ui/register" class="card">
+    <AntiforgeryToken />
+
+    <div class="field">
+        <label for="email">Email</label>
+        <input id="email" name="Email" type="email" autocomplete="off" autofocus required />
+    </div>
+
+    <div class="field">
+        <label for="fullName">Full name</label>
+        <input id="fullName" name="FullName" type="text" autocomplete="off" required />
+    </div>
+
+    <div class="field">
+        <label for="role">Role</label>
+        <select id="role" name="Role" required>
+            @foreach (var role in SystemRoles.All)
+            {
+                <option value="@role">@role</option>
+            }
+        </select>
+    </div>
+
+    <div class="field">
+        <label for="newPassword">Password</label>
+        <input id="newPassword" name="Password" type="password" autocomplete="new-password" required />
+    </div>
+
+    @* Read from the same Identity options the register validator enforces, so the rules shown to the
+       administrator cannot drift from the rules actually applied. *@
+    <ul class="requirements">
+        @foreach (var requirement in Requirements)
+        {
+            <li>@requirement</li>
+        }
+    </ul>
+
+    <button type="submit" class="button">Create account</button>
+</form>
+
+@code {
+    private string? _notice;
+
+    private IReadOnlyList<string> Requirements
+    {
+        get
+        {
+            var password = IdentityOptions.Value.Password;
+            var required = new List<string> { $"At least {password.RequiredLength} characters" };
+
+            if (password.RequireDigit)
+                required.Add("At least one digit");
+
+            if (password.RequireLowercase)
+                required.Add("At least one lowercase letter");
+
+            if (password.RequireUppercase)
+                required.Add("At least one uppercase letter");
+
+            if (password.RequireNonAlphanumeric)
+                required.Add("At least one non-alphanumeric character");
+
+            if (password.RequiredUniqueChars > 1)
+                required.Add($"At least {password.RequiredUniqueChars} distinct characters");
+
+            return required;
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        var context = HttpContextAccessor.HttpContext;
+
+        if (context is null)
+            return;
+
+        _notice = Notices.Take(context);
+    }
+}

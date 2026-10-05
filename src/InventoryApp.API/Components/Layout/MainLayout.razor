@@ -1,0 +1,47 @@
+@inherits LayoutComponentBase
+
+<header class="app-header">
+    <a class="brand" href="/">Inventory Management</a>
+
+    <nav class="app-nav">
+        <NavLink href="/" Match="NavLinkMatch.All">Dashboard</NavLink>
+
+        @* Same policy name the API's register endpoint uses, so "who can create users" is answered
+           in one place rather than by a second role check written into the view. *@
+        <AuthorizeView Policy="@AuthorizationPolicies.CanManageUsers">
+            <Authorized>
+                <NavLink href="/register">Users</NavLink>
+            </Authorized>
+        </AuthorizeView>
+    </nav>
+
+    <AuthorizeView>
+        <Authorized>
+            <div class="app-user">
+                <span class="app-user-email">@context.User.Identity?.Name</span>
+
+                <span class="roles">
+                    @foreach (var role in context.User.FindAll(AuthClaimTypes.Role))
+                    {
+                        <span class="role">@role.Value</span>
+                    }
+                </span>
+            </div>
+
+            @* A POST, not a link: a GET sign-out can be triggered cross-site, which is a small but
+               real way to annoy users and to cut short sessions. The antiforgery token is rendered
+               here because this layout is static server-side rendering, where HttpContext exists. *@
+            <form method="post" action="/ui/logout" class="app-signout">
+                <AntiforgeryToken />
+                <button type="submit" class="button button-ghost">Sign out</button>
+            </form>
+        </Authorized>
+        <NotAuthorized>
+            <a class="button" href="/login">Sign in</a>
+        </NotAuthorized>
+    </AuthorizeView>
+</header>
+
+<main class="app-main">
+    @Body
+</main>

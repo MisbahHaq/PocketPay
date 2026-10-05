@@ -1,6 +1,8 @@
 using InventoryApp.Application;
+using InventoryApp.Components;
 using InventoryApp.Infrastructure;
 using InventoryApp.Infrastructure.Persistence;
+using InventoryApp.Web;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.OpenApi.Models;
 using Serilog;
@@ -18,6 +20,16 @@ builder.Services
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+// Interactive server rendering, for the dashboard's live session countdown. The pages that sign a
+// user in or out stay static server-side rendering: cookies can only be written or deleted while a
+// real HTTP response is in flight.
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
+
+// Makes the request's authentication state visible to components, which is how @Authorize and
+// AuthorizeView read the UI cookie during server-side rendering.
+builder.Services.AddCascadingAuthenticationState();
 
 builder.Services.AddSwaggerGen(options =>
 {
@@ -69,6 +81,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// Static assets for the UI stylesheet. Before routing, so it is not re-done per request path.
+app.UseStaticFiles();
+
 // Rate limiting runs before authentication so that a flood of credential requests is rejected
 // without the cost of validating a token on each one.
 app.UseRateLimiter();
@@ -78,7 +93,18 @@ app.UseSerilogRequestLogging();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// After authorization so the handler already knows who the caller is, and before the endpoints it
+// protects. The UI sign-in endpoints disable automatic validation and check the token themselves, so
+// a failure can redirect back to the form instead of returning a bare 400.
+app.UseAntiforgery();
+
 app.MapControllers();
+
+// Form-post endpoints behind the UI's sign-in, register and sign-out screens.
+app.MapUiEndpoints();
+
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode();
 
 await app.Services.InitializeDatabaseAsync();
 

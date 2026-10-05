@@ -162,3 +162,4 @@ C:\Users\Misbah\Desktop\Inventory-Management\src\InventoryApp.API\obj\Debug\net8
 C:\Users\Misbah\Desktop\Inventory-Management\src\InventoryApp.API\obj\Debug\net8.0\InventoryApp.API.pdb
 C:\Users\Misbah\Desktop\Inventory-Management\src\InventoryApp.API\obj\Debug\net8.0\InventoryApp.API.genruntimeconfig.cache
 C:\Users\Misbah\Desktop\Inventory-Management\src\InventoryApp.API\obj\Debug\net8.0\ref\InventoryApp.API.dll
+C:\Users\Misbah\Desktop\Inventory-Management\src\InventoryApp.API\bin\Debug\net8.0\InventoryApp.API.staticwebassets.runtime.json

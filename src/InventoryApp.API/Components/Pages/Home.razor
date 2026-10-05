@@ -1,0 +1,61 @@
+@page "/"
+@attribute [Authorize]
+
+<PageTitle>Dashboard</PageTitle>
+
+<h1>Dashboard</h1>
+
+<AuthorizeView Context="authState">
+    <Authorized>
+        <section class="card">
+            <h2>Your account</h2>
+
+            <dl class="details">
+                <dt>Name</dt>
+                <dd>@(authState.User.FindFirst(AuthClaimTypes.Name)?.Value ?? "(none)")</dd>
+
+                <dt>Email</dt>
+                <dd>@(authState.User.FindFirst(AuthClaimTypes.Email)?.Value ?? "(none)")</dd>
+
+                <dt>User ID</dt>
+                <dd><code>@(authState.User.FindFirst(AuthClaimTypes.UserId)?.Value ?? "(none)")</code></dd>
+
+                <dt>Roles</dt>
+                <dd>
+                    @foreach (var role in authState.User.FindAll(AuthClaimTypes.Role))
+                    {
+                        <span class="role">@role.Value</span>
+                    }
+                </dd>
+            </dl>
+        </section>
+
+        @{
+            var expiry = UiClaims.GetSessionExpiry(authState.User);
+        }
+
+        @if (expiry is { } sessionExpiry)
+        {
+            <SessionCountdown ExpiresAt="@sessionExpiry" @rendermode="InteractiveServer" />
+        }
+        else
+        {
+            <p class="countdown countdown-warn">
+                No session expiry was recorded at sign-in. <a href="@UiEndpoints.LoginPage">Sign in again</a>.
+            </p>
+        }
+
+        <section class="card">
+            <h2>What this screen proves</h2>
+            <p>
+                The cookie above was issued by <code>POST /ui/login</code> and validated by the UI
+                authentication scheme. The API under <code>/api</code> still refuses this same
+                browser session, because it only accepts bearer tokens.
+            </p>
+            <p class="muted">
+                Sessions are deliberately short-lived and are not extended by activity: a role change
+                or deactivation takes effect no later than the next sign-in, never later than now.
+            </p>
+        </section>
+    </Authorized>
+</AuthorizeView>

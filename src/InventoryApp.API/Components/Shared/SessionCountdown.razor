@@ -1,0 +1,61 @@
+@implements IDisposable
+
+@* The one deliberately interactive piece of the UI. Everything around it is static server-side
+   rendering, so this island is the only thing that opens a circuit, and it is also the only place
+   where a ticking timer makes any sense. *@
+
+@if (_remaining is { } remaining && remaining > TimeSpan.Zero)
+{
+    <p class="countdown">
+        Signed in for up to <strong>@Format(remaining)</strong> more.
+        After that the cookie expires and you will be asked to sign in again.
+    </p>
+}
+else
+{
+    <p class="countdown countdown-warn">
+        Your session has expired. <a href="@UiEndpoints.LoginPage">Sign in again</a>.
+    </p>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public DateTimeOffset ExpiresAt { get; set; }
+
+    private Timer? _timer;
+    private TimeSpan? _remaining;
+    private bool _disposed;
+
+    protected override void OnParametersSet() =>
+        // Corrected on every render rather than trusted once, so the countdown cannot drift when the
+        // component is re-parented or its parameter changes.
+        _remaining = ExpiresAt - DateTimeOffset.UtcNow;
+
+    protected override void OnInitialized() =>
+        _timer = new Timer(
+            static state => ((SessionCountdown)state!).Tick(),
+            this,
+            TimeSpan.FromSeconds(1),
+            TimeSpan.FromSeconds(1));
+
+    private void Tick()
+    {
+        if (_disposed)
+            return;
+
+        _remaining = ExpiresAt - DateTimeOffset.UtcNow;
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    private static string Format(TimeSpan remaining) =>
+        remaining.TotalHours >= 1
+            ? $"{(int)remaining.TotalHours}h {remaining.Minutes}m"
+            : $"{remaining.Minutes}m {remaining.Seconds}s";
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _timer?.Dispose();
+    }
+}

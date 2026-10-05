@@ -1,0 +1,62 @@
+@page "/login"
+
+<PageTitle>Sign in</PageTitle>
+
+@inject UiNoticeService Notices
+@inject IHttpContextAccessor HttpContextAccessor
+
+<h1>Sign in</h1>
+
+<p class="muted">Use your inventory account to continue.</p>
+
+@if (_notice is not null)
+{
+    <div class="notice notice-error" role="alert">@_notice</div>
+}
+
+@* A plain HTML form posting to an endpoint, not an EditForm with an OnValidSubmit handler.
+   Sign-in has to write an authentication cookie, which requires a real HTTP response, so the work
+   belongs on the request thread rather than inside a component event. *@
+<form method="post" action="/ui/login" class="card">
+    <AntiforgeryToken />
+
+    <input type="hidden" name="returnUrl" value="@_returnUrl" />
+
+    <div class="field">
+        <label for="email">Email</label>
+        <input id="email" name="Email" type="email" autocomplete="username" autofocus required />
+    </div>
+
+    <div class="field">
+        <label for="password">Password</label>
+        <input id="password" name="Password" type="password" autocomplete="current-password" required />
+    </div>
+
+    <button type="submit" class="button">Sign in</button>
+</form>
+
+<p class="muted">
+    Are you an administrator provisioning a new account? <a href="/register">Register a user</a>.
+</p>
+
+@code {
+    private string? _notice;
+
+    // Holds where to return to after signing in. Sanitised here as well as at the endpoint so the
+    // value echoed into the form is already known to be a same-origin path.
+    private string _returnUrl = UiEndpoints.HomePage;
+
+    protected override void OnInitialized()
+    {
+        // HttpContext is present because this page is rendered as static server-side HTML. The null
+        // guard keeps the page renderable if it is ever moved into an interactive render mode, where
+        // there is no request to read the pending notice from.
+        var context = HttpContextAccessor.HttpContext;
+
+        if (context is null)
+            return;
+
+        _notice = Notices.Take(context);
+        _returnUrl = UiEndpoints.SafeReturnUrl(context.Request.Query["returnUrl"].ToString());
+    }
+}

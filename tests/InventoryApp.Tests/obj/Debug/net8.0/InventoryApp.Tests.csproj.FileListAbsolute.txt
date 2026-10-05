@@ -520,3 +520,4 @@ C:\Users\Misbah\Desktop\Inventory-Management\tests\InventoryApp.Tests\obj\Debug\
 C:\Users\Misbah\Desktop\Inventory-Management\tests\InventoryApp.Tests\obj\Debug\net8.0\InventoryApp.Tests.pdb
 C:\Users\Misbah\Desktop\Inventory-Management\tests\InventoryApp.Tests\obj\Debug\net8.0\InventoryApp.Tests.genruntimeconfig.cache
 C:\Users\Misbah\Desktop\Inventory-Management\tests\InventoryApp.Tests\obj\Debug\net8.0\ref\InventoryApp.Tests.dll
+C:\Users\Misbah\Desktop\Inventory-Management\tests\InventoryApp.Tests\bin\Debug\net8.0\InventoryApp.API.staticwebassets.runtime.json

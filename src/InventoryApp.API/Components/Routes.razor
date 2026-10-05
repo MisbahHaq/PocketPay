@@ -1,0 +1,40 @@
+@using InventoryApp.Web
+
+@* Static server-side rendering throughout. Only the countdown island opts into an interactive render
+   mode, which keeps every page that writes a cookie on a real HTTP request. *@
+<Router AppAssembly="@typeof(Program).Assembly">
+    <Found Context="routeData">
+        @* The Blazor SDK turns a page's [Authorize] into endpoint metadata, so an anonymous or
+           under-privileged request is challenged before this component ever renders and the cookie
+           handler redirects to the sign-in page. The templates below are the fallback for a request
+           that reaches the router unauthenticated anyway. *@
+        <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+            <NotAuthorized>
+                <div class="notice notice-warn" role="alert">
+                    @if (context.User.Identity?.IsAuthenticated == true)
+                    {
+                        <text>Your account does not have permission to view this page.</text>
+                    }
+                    else
+                    {
+                        <text>Please sign in to continue.</text>
+                    }
+                </div>
+
+                <a class="button" href="@UiEndpoints.LoginPage">Sign in</a>
+            </NotAuthorized>
+            <Authorizing>
+                <p class="muted">Checking your access&hellip;</p>
+            </Authorizing>
+        </AuthorizeRouteView>
+
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <h1>Page not found</h1>
+            <p class="muted">That page does not exist.</p>
+            <a class="button" href="/">Back to the dashboard</a>
+        </LayoutView>
+    </NotFound>
+</Router>

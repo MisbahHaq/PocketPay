@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inventory Management</title>
+    <base href="/" />
+    <link rel="stylesheet" href="app.css" />
+    <link rel="icon" href="data:," />
+</head>
+<body>
+    @* Routes renders the whole body. It is deliberately static server-side rendering: the session
+       cookie has to be readable while the page is being produced, and the interactive islands below
+       inherit that state from the first render. *@
+    <Routes />
+    <script src="_framework/blazor.web.js"></script>
+</body>
+</html>
