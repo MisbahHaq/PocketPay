@@ -30,17 +30,24 @@ public sealed class RegisterUserCommandHandler(
 
         var request = command.Request;
 
-        var role = string.IsNullOrWhiteSpace(request.Role) ? SystemRoles.Staff : request.Role.Trim();
+        var requestedRole = request.Role?.Trim();
 
-        if (!SystemRoles.All.Contains(role, StringComparer.OrdinalIgnoreCase))
+        // Guarded here as well as in the validator. The pipeline validator is the first
+        // line of defence and produces the nicer 422, but a use case must remain safe
+        // when it is reached without one, for example from a future seeding job.
+        if (!string.IsNullOrWhiteSpace(requestedRole) && SystemRoles.Canonical(requestedRole) is null)
         {
             throw new ApplicationValidationException(
-                $"Unknown role '{role}'.",
+                $"Unknown role '{requestedRole}'.",
                 [new Error("role.unknown", $"Role must be one of: {string.Join(", ", SystemRoles.All)}.")
                 {
                     Field = nameof(RegisterUserRequest.Role),
                 }]);
         }
+
+        // Defaulting to Staff rather than Admin means a new account can never be
+        // over-privileged by omission.
+        var role = SystemRoles.Canonical(requestedRole) ?? SystemRoles.Staff;
 
         var user = new ApplicationUser
         {

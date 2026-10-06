@@ -15,6 +15,13 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Inventory.Application\Inventory.Application.csproj" />
     <ProjectReference Include="..\..\src\Inventory.Domain\Inventory.Domain.csproj" />
+    <!-- For pure classes such as JwtTokenService. Still no database: nothing here
+         constructs a DbContext, so the suite stays in the seconds. -->
+    <ProjectReference Include="..\..\src\Inventory.Infrastructure\Inventory.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
   </ItemGroup>
 
   <ItemGroup>

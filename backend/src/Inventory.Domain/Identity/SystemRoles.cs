@@ -29,4 +29,25 @@ public static class SystemRoles
     public const string Staff = "Staff";
 
     public static readonly IReadOnlyList<string> All = [Admin, Manager, Staff];
+
+    /// <summary>
+    /// Case-insensitive and whitespace-tolerant on purpose: the UI may submit "admin" or
+    /// " Admin", and rejecting either while the command handler would have accepted it
+    /// would move the failure from a 422 with a clear message to a 500. Roles are still
+    /// persisted using the exact casing above.
+    /// </summary>
+    public static bool IsValid(string? role) => Canonical(role) is not null;
+
+    /// <summary>Returns the canonically cased role name, or null when unrecognised.</summary>
+    public static string? Canonical(string? role)
+    {
+        var trimmed = role?.Trim();
+
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            return null;
+        }
+
+        return All.FirstOrDefault(candidate => candidate.Equals(trimmed, StringComparison.OrdinalIgnoreCase));
+    }
 }

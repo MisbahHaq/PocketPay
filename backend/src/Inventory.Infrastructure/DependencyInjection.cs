@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Inventory.Infrastructure;
 
@@ -69,15 +70,17 @@ public static class DependencyInjection
         {
             options.UseNpgsql(connectionString, npgsql =>
             {
-                // Migrations are applied by the seeder at startup, not by the retry
-                // strategy: a failed migration should surface immediately, whereas a
-                // transient connection blip at boot should be retried.
                 npgsql.MigrationsAssembly(typeof(InventoryDbContext).Assembly.FullName);
-
-                // Bound the connection pool so a traffic spike cannot exhaust PostgreSQL's
-                // connection limit and take the database down for everything.
-                npgsql.MaxDataSourceSize(100);
             });
+
+            // Deliberately NOT calling EnableRetryOnFailure here. Npgsql's retrying
+            // execution strategy rejects user-initiated transactions unless every one is
+            // wrapped in strategy.ExecuteAsync(), which would forbid the manual
+            // transactions that stock operations require. Retry lives in UnitOfWork
+            // instead, where it can re-evaluate business rules between attempts.
+            //
+            // Pool size is tuned in the connection string (Maximum Pool Size) rather than
+            // here, so it can be raised in production without a rebuild.
 
             // snake_case identifiers, matching PostgreSQL convention.
             options.UseSnakeCaseNamingConvention();
@@ -97,7 +100,7 @@ public static class DependencyInjection
         services.AddIdentityCore<ApplicationUser>(identity =>
             {
                 identity.User.RequireUniqueEmail = true;
-                identity.Lockout.EnabledForNewUsers = true;
+                identity.Lockout.AllowedForNewUsers = true;
                 identity.Lockout.MaxFailedAccessAttempts = 5;
                 identity.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
 

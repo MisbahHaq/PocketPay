@@ -70,8 +70,9 @@ public static class SequentialGuid
         Span<byte> wide = stackalloc byte[8];
         BinaryPrimitives.WriteInt64BigEndian(wide, timestamp);
 
-        // 48-bit big-endian Unix milliseconds into bytes 0..5.
-        wide[6..8].CopyTo(bytes[0..2]);
+        // 48-bit big-endian Unix milliseconds into bytes 0..5. The value is written as a
+        // full 8-byte big-endian integer, so the top 6 bytes are the 48 significant bits.
+        wide[2..8].CopyTo(bytes[0..6]);
 
         // rand_a (12 bits) is spent entirely on the sequence number, which is what
         // guarantees ids created inside the same millisecond still sort correctly.
