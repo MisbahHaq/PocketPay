@@ -68,6 +68,17 @@ public static class DependencyInjection
 
         services.AddDbContext<InventoryDbContext>((provider, options) =>
         {
+            // Resolved from the container rather than captured from the `configuration`
+            // argument above. Reading it eagerly at registration time froze the value at
+            // the moment AddInfrastructure ran, which meant a test host could not override
+            // the connection string and configuration reload was ignored.
+            var connectionString = provider
+                .GetRequiredService<IConfiguration>()
+                .GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException(
+                    "ConnectionStrings:DefaultConnection is not configured. Set it via user secrets, "
+                    + "an environment variable, or ConnectionStrings__DefaultConnection.");
+
             options.UseNpgsql(connectionString, npgsql =>
             {
                 npgsql.MigrationsAssembly(typeof(InventoryDbContext).Assembly.FullName);

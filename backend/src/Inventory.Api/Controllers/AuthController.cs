@@ -76,23 +76,30 @@ public sealed class AuthController(ISender sender) : ApiControllerBase
     public async Task<ActionResult<CurrentUserResponse>> Me(CancellationToken cancellationToken) =>
         Ok(await sender.Send(new GetCurrentUserQuery(), cancellationToken));
 
-    /// <summary>Creates a user account. Admin only - there is no self-registration.</summary>
-    /// <response code="200">Created. The new user's profile and role.</response>
+/// <summary>Creates a user account. Admin only - there is no self-registration.</summary>
+    /// <response code="201">Created. The new user's profile and role.</response>
     /// <response code="401">Not authenticated.</response>
     /// <response code="403">Authenticated but not an administrator.</response>
     /// <response code="409">An account with that email already exists.</response>
     /// <response code="422">The request failed validation.</response>
     [HttpPost("users")]
     [Authorize(Policy = AuthorizationPolicies.ManageUsers)]
-    [ProducesResponseType<CurrentUserResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<CurrentUserResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ProblemResponse>(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType<ProblemResponse>(StatusCodes.Status403Forbidden)]
     [ProducesResponseType<ProblemResponse>(StatusCodes.Status409Conflict)]
     [ProducesResponseType<ProblemResponse>(StatusCodes.Status422UnprocessableEntity)]
     public async Task<ActionResult<CurrentUserResponse>> RegisterUser(
         [FromBody] RegisterUserRequest request,
-        CancellationToken cancellationToken) =>
-        Ok(await sender.Send(new RegisterUserCommand(request), cancellationToken));
+        CancellationToken cancellationToken)
+    {
+        var created = await sender.Send(new RegisterUserCommand(request), cancellationToken);
+
+        // 201, not 200: this created a resource, and clients that distinguish the two
+        // treat a create as non-idempotent. No Location header, because Phase 1 exposes
+        // no GET for a single user; adding one next to this would be a dead link.
+        return StatusCode(StatusCodes.Status201Created, created);
+    }
 }
 
 /// <summary>Marker type used only to attach OpenAPI schema types to error responses.</summary>
