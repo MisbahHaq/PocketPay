@@ -46,11 +46,12 @@ public sealed class InventoryApiFactory(PostgresFixture fixture) : WebApplicatio
                 ["Jwt:Audience"] = "inventory.client",
                 ["Jwt:SigningKey"] = SigningKey,
                 ["Jwt:AccessTokenMinutes"] = "15",
-                ["Database:ApplyMigrationsOnStartup"] = "false",
+["Database:ApplyMigrationsOnStartup"] = "false",
                 // No seeding: each test creates exactly the accounts it needs, so a test
-                // never depends on a bootstrap admin existing.
-                ["Database:Admin:Email"] = string.Empty,
-                ["Database:Admin:Password"] = string.Empty,
+                // never depends on a bootstrap admin existing. The keys match what
+                // DatabaseSeeder actually reads (Seed:*, not Database:Admin:*).
+                ["Seed:AdminEmail"] = string.Empty,
+                ["Seed:AdminPassword"] = string.Empty,
                 ["Cors:AllowedOrigins:0"] = "http://localhost:5173",
             });
         });

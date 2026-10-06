@@ -1,6 +1,6 @@
 # API reference
 
-Base URL in development: `https://localhost:5001` (or `http://localhost:5000`).
+Base URL in development: `http://localhost:5126` (or `https://localhost:7266` on the `https` launch profile). The port comes from `backend/src/Inventory.Api/Properties/launchSettings.json`.
 
 Swagger UI is served at `/swagger` in the Development environment, with the OpenAPI
 document at `/swagger/v1/swagger.json`.
