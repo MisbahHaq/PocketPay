@@ -74,11 +74,6 @@ C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Api\bin\Debug
 C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Api\bin\Debug\net8.0\Inventory.Domain.pdb
 C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Api\obj\Debug\net8.0\staticwebassets.build.json
 C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Api\obj\Debug\net8.0\staticwebassets.development.json
-C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Api\obj\Debug\net8.0\staticwebassets\msbuild.Inventory.Api.Microsoft.AspNetCore.StaticWebAssets.props
-C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Api\obj\Debug\net8.0\staticwebassets\msbuild.build.Inventory.Api.props
-C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Api\obj\Debug\net8.0\staticwebassets\msbuild.buildMultiTargeting.Inventory.Api.props
-C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Api\obj\Debug\net8.0\staticwebassets\msbuild.buildTransitive.Inventory.Api.props
-C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Api\obj\Debug\net8.0\staticwebassets.pack.json
 C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Api\obj\Debug\net8.0\scopedcss\bundle\Inventory.Api.styles.css
 C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Api\obj\Debug\net8.0\Inventor.18CF93C9.Up2Date
 C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Api\obj\Debug\net8.0\Inventory.Api.dll
@@ -86,3 +81,11 @@ C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Api\obj\Debug
 C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Api\obj\Debug\net8.0\Inventory.Api.pdb
 C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Api\obj\Debug\net8.0\Inventory.Api.genruntimeconfig.cache
 C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Api\obj\Debug\net8.0\ref\Inventory.Api.dll
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Api\bin\Debug\net8.0\Inventory.Api.staticwebassets.endpoints.json
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Api\obj\Debug\net8.0\rpswa.dswa.cache.json
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Api\obj\Debug\net8.0\rjimswa.dswa.cache.json
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Api\obj\Debug\net8.0\rjsmrazor.dswa.cache.json
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Api\obj\Debug\net8.0\rjsmcshtml.dswa.cache.json
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Api\obj\Debug\net8.0\staticwebassets.build.json.cache
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Api\obj\Debug\net8.0\staticwebassets.build.endpoints.json
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Api\obj\Debug\net8.0\swae.build.ex.cache

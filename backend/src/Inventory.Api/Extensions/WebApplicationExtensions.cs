@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.AspNetCore.HttpOverrides;
+using Npgsql;
 using Serilog;
 using Serilog.Context;
 using Inventory.Api.Middleware;
@@ -131,11 +132,25 @@ public static class WebApplicationExtensions
             return;
         }
 
-        await using var scope = app.Services.CreateAsyncScope();
+await using var scope = app.Services.CreateAsyncScope();
         var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
 
-        await seeder.MigrateAsync(cancellationToken);
-        await seeder.SeedAsync(cancellationToken);
+        try
+        {
+            await seeder.MigrateAsync(cancellationToken);
+            await seeder.SeedAsync(cancellationToken);
+        }
+        catch (Exception exception) when (exception is NpgsqlException or TimeoutException)
+        {
+            // Without this, the console gets a 30-line Npgsql stack dump that says nothing
+            // about what to fix. This is the first failure a fresh checkout hits, and the
+            // useful part is one sentence: which setting is wrong.
+            throw new InvalidOperationException(
+                "Could not prepare the database. Check ConnectionStrings:DefaultConnection "
+                + "(dotnet user-secrets list) and that PostgreSQL is running with the "
+                + "database and role created. See README.md step 1.",
+                exception);
+        }
     }
 
     /// <summary>

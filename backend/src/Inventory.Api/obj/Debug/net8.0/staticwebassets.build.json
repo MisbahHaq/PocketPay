@@ -1,11 +1,1 @@
-{
-  "Version": 1,
-  "Hash": "oooulfFIoE4FG+MhsILqudDxlOMtbMLujnXjS+/qg0A=",
-  "Source": "Inventory.Api",
-  "BasePath": "_content/Inventory.Api",
-  "Mode": "Default",
-  "ManifestType": "Build",
-  "ReferencedProjectsConfiguration": [],
-  "DiscoveryPatterns": [],
-  "Assets": []
-}
+{"Version":1,"Hash":"sRieD83P9jChQSYD5XylCstMihXuVXpw2vYAoy0YDlI=","Source":"Inventory.Api","BasePath":"/","Mode":"Root","ManifestType":"Build","ReferencedProjectsConfiguration":[],"DiscoveryPatterns":[],"Assets":[],"Endpoints":[]}

@@ -58,11 +58,14 @@ docs/
   api.md           endpoint reference
   testing.md       how to run the test suites
   frontend.md      frontend architecture and request flow
+  troubleshooting.md  first thing to read when a step fails
 scripts/
   create-test-role.sql   one-time test database setup
 ```
 
 ## Getting started
+
+If a step below fails, check [docs/troubleshooting.md](docs/troubleshooting.md) first - it covers every error message the commands above can produce.
 
 ### 1. Database
 
@@ -92,8 +95,11 @@ dotnet user-secrets set "Jwt:SigningKey" "<generated value, see below>"
 Generate a signing key with:
 
 ```powershell
-[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
+$r = [Security.Cryptography.RandomNumberGenerator]::Create(); $b = New-Object byte[] 48; $r.GetBytes($b); [Convert]::ToBase64String($b)
 ```
+
+(The static `RandomNumberGenerator::GetBytes` overload does not exist in Windows
+PowerShell 5.1, hence the explicit `Create()`.)
 
 To seed the first administrator in Development, set these as well. The keys are
 `Seed:...`, not `Database:Admin:...`, and both are required:

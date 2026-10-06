@@ -503,3 +503,4 @@ C:\Users\Misbah\Desktop\Inventory-Management\backend\tests\Inventory.Integration
 C:\Users\Misbah\Desktop\Inventory-Management\backend\tests\Inventory.IntegrationTests\obj\Debug\net8.0\Inventory.IntegrationTests.pdb
 C:\Users\Misbah\Desktop\Inventory-Management\backend\tests\Inventory.IntegrationTests\obj\Debug\net8.0\Inventory.IntegrationTests.genruntimeconfig.cache
 C:\Users\Misbah\Desktop\Inventory-Management\backend\tests\Inventory.IntegrationTests\obj\Debug\net8.0\ref\Inventory.IntegrationTests.dll
+C:\Users\Misbah\Desktop\Inventory-Management\backend\tests\Inventory.IntegrationTests\bin\Debug\net8.0\Inventory.Api.staticwebassets.endpoints.json
