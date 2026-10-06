@@ -1,0 +1,6 @@
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Infrastructure\obj\Debug\net8.0\Inventory.Infrastructure.csproj.AssemblyReference.cache
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Infrastructure\obj\Debug\net8.0\Inventory.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Infrastructure\obj\Debug\net8.0\Inventory.Infrastructure.AssemblyInfoInputs.cache
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Infrastructure\obj\Debug\net8.0\Inventory.Infrastructure.AssemblyInfo.cs
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Infrastructure\obj\Debug\net8.0\Inventory.Infrastructure.csproj.CoreCompileInputs.cache
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Infrastructure\obj\Debug\net8.0\Inventory.Infrastructure.sourcelink.json

@@ -1,0 +1,13 @@
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Domain\obj\Debug\net8.0\Inventory.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Domain\obj\Debug\net8.0\Inventory.Domain.AssemblyInfoInputs.cache
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Domain\obj\Debug\net8.0\Inventory.Domain.AssemblyInfo.cs
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Domain\obj\Debug\net8.0\Inventory.Domain.csproj.CoreCompileInputs.cache
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Domain\obj\Debug\net8.0\Inventory.Domain.sourcelink.json
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Domain\obj\Debug\net8.0\Inventory.Domain.csproj.AssemblyReference.cache
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Domain\bin\Debug\net8.0\Inventory.Domain.deps.json
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Domain\bin\Debug\net8.0\Inventory.Domain.dll
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Domain\bin\Debug\net8.0\Inventory.Domain.pdb
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Domain\obj\Debug\net8.0\Inventory.Domain.dll
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Domain\obj\Debug\net8.0\refint\Inventory.Domain.dll
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Domain\obj\Debug\net8.0\Inventory.Domain.pdb
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Domain\obj\Debug\net8.0\ref\Inventory.Domain.dll

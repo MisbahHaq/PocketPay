@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Inventory.Application - use cases and orchestration.
+
+    Depends on Domain plus framework-agnostic abstractions. It references
+    ASP.NET Identity's *Core* package because UserManager<T>/RoleManager<T> are
+    the correct, well-tested password hashing and role primitives; reimplementing
+    them would be a security liability. Note it does NOT reference
+    Identity.EntityFrameworkCore: the Application layer must not know that
+    Identity happens to be persisted with EF Core.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>Inventory.Application</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Inventory.Domain\Inventory.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="Riok.Mapperly" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="Microsoft.Extensions.Identity.Core" />
+    <PackageReference Include="Microsoft.Extensions.Identity.Stores" />
+
+    <!--
+      The one ORM abstraction the Application layer is allowed to see.
+
+      Why: every list endpoint in this system must do server-side filtering, sorting
+      and pagination over a composable query. Without EF Core's query API, that
+      either pushes all filtering into hand-written repositories (a repetitive
+      abstraction per entity, ~15 of them) or leaks IQueryable/SqlExpression deep
+      into handlers. Referencing the abstractions package - which contains no
+      provider, no connection string, no SQL dialect - keeps query composition
+      natural while Application still cannot tell PostgreSQL from anything else.
+    -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Inventory.UnitTests" />
+    <InternalsVisibleTo Include="Inventory.IntegrationTests" />
+  </ItemGroup>
+
+</Project>

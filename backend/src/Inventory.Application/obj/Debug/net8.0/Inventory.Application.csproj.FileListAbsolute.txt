@@ -1,0 +1,16 @@
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Application\obj\Debug\net8.0\Inventory.Application.csproj.AssemblyReference.cache
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Application\obj\Debug\net8.0\Inventory.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Application\obj\Debug\net8.0\Inventory.Application.AssemblyInfoInputs.cache
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Application\obj\Debug\net8.0\Inventory.Application.AssemblyInfo.cs
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Application\obj\Debug\net8.0\Inventory.Application.csproj.CoreCompileInputs.cache
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Application\obj\Debug\net8.0\Inventory.Application.sourcelink.json
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Application\bin\Debug\net8.0\Inventory.Application.deps.json
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Application\bin\Debug\net8.0\Inventory.Application.dll
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Application\bin\Debug\net8.0\Inventory.Application.pdb
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Application\bin\Debug\net8.0\Inventory.Domain.dll
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Application\bin\Debug\net8.0\Inventory.Domain.pdb
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Application\obj\Debug\net8.0\Inventor.1DAC6D85.Up2Date
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Application\obj\Debug\net8.0\Inventory.Application.dll
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Application\obj\Debug\net8.0\refint\Inventory.Application.dll
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Application\obj\Debug\net8.0\Inventory.Application.pdb
+C:\Users\Misbah\Desktop\Inventory-Management\backend\src\Inventory.Application\obj\Debug\net8.0\ref\Inventory.Application.dll
