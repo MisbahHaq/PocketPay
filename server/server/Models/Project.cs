@@ -12,5 +12,15 @@
         public int CreatorId { get; set; }
         public User Creator { get; set; } = new User();
 
+
+        // Task
+
+        public ICollection<TaskItem> TaskItems { get; set; } = new 
+            List<TaskItem>();
+
+        // Project Member Relation
+
+        public ICollection<ProjectMember> ProjectMembers { get; set; } = new
+            List<ProjectMember>();
     }
 }
