@@ -8,6 +8,10 @@
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        //tenant (null only for legacy rows before backfill)
+        public int? OrganizationId { get; set; }
+        public Organization? Organization { get; set; }
+
         // Ownership
         public int CreatorId { get; set; }
         public User ? Creator { get; set; } 

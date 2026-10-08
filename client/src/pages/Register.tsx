@@ -3,16 +3,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getErrorMessage } from "../utils/errors";
 
-const ROLES = [
-  { name: "Developer", desc: "Work on projects & tasks" },
-  { name: "Manager", desc: "Create & manage projects" },
-];
-
 export default function Register() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("Developer");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const { register } = useAuth();
@@ -23,8 +17,8 @@ export default function Register() {
     setError("");
     setSubmitting(true);
     try {
-      await register(username, email, password, role);
-      navigate("/dashboard");
+      await register(username, email, password);
+      navigate("/org/new");
     } catch (err) {
       setError(getErrorMessage(err, "Registration failed"));
     } finally {
@@ -39,7 +33,9 @@ export default function Register() {
           <span className="brand-mark">&#9670;</span> Inventory
         </div>
         <h1>Create your account</h1>
-        <p className="subtitle">Pick a role to get started.</p>
+        <p className="subtitle">
+          Create an account, then start your own organization or accept an invitation to join one.
+        </p>
 
         <form onSubmit={handleSubmit}>
           <div className="field">
@@ -78,24 +74,6 @@ export default function Register() {
               minLength={6}
               required
             />
-          </div>
-
-          <div className="field">
-            <label>Role</label>
-            <div className="role-picker">
-              {ROLES.map((r) => (
-                <button
-                  type="button"
-                  key={r.name}
-                  className={`role-option${role === r.name ? " active" : ""}`}
-                  onClick={() => setRole(r.name)}
-                >
-                  <span className="role-name">{r.name}</span>
-                  <span className="role-desc">{r.desc}</span>
-                </button>
-              ))}
-            </div>
-            <p className="hint">Managers can create projects. Developers can view and work on them.</p>
           </div>
 
           {error && <div className="alert alert-error">{error}</div>}

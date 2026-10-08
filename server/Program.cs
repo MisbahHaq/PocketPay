@@ -1,10 +1,13 @@
 ﻿using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
+using server.Authorization;
 using server.Data;
 using server.Helpers;
+using server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -51,6 +54,23 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings!.SecretKey))
         };
     });
+
+//current user / audit trail / permission-based authorization
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUser, CurrentUserService>();
+builder.Services.AddScoped<IAuditLogService, AuditLogService>();
+builder.Services.AddScoped<IAuthorizationHandler, PermissionHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, OrgMemberHandler>();
+
+builder.Services.AddAuthorization(options =>
+{
+    foreach (var (key, _) in PermissionKeys.All)
+    {
+        options.AddPolicy(key, policy => policy.Requirements.Add(new PermissionRequirement(key)));
+    }
+
+    options.AddPolicy(PolicyNames.OrgMember, policy => policy.Requirements.Add(new OrgMemberRequirement()));
+});
 
 var app = builder.Build();
 

@@ -6,6 +6,7 @@ using server.Data;
 using server.DTOs.AuthDTO;
 using server.Helpers;
 using server.Models;
+using server.Services;
 
 namespace server.Controllers
 {
@@ -15,11 +16,13 @@ namespace server.Controllers
     {
         private readonly AppDbContext _dbContext;
         private readonly JwtHelper _jwtHelper;
+        private readonly ICurrentUser _current;
 
-        public AuthController(AppDbContext dbContext, JwtHelper jwtHelper)
+        public AuthController(AppDbContext dbContext, JwtHelper jwtHelper, ICurrentUser current)
         {
             _dbContext = dbContext;
             _jwtHelper = jwtHelper;
+            _current = current;
         }
 
         [HttpPost("login")]
@@ -36,7 +39,7 @@ namespace server.Controllers
             }
 
             var roles = await _dbContext.UserRoles
-                .Where(ur => ur.UserId == user.UserId)
+                .Where(ur => ur.UserId == user.UserId && ur.Role!.OrganizationId == user.OrganizationId)
                 .Select(ur => ur.Role!.RoleName)
                 .ToListAsync();
             string token = _jwtHelper.GenerateToken(user, roles);
@@ -54,20 +57,19 @@ namespace server.Controllers
         }
 
 
+        //open account creation: the account starts without an organization.
+        //users only join an organization through an invitation or by creating their own.
         [HttpPost("register")]
         public async Task<ActionResult> Register(RegisterDTO userDTO)
         {
-            //unique email
             if (await _dbContext.Users.AnyAsync(u => u.UserEmail == userDTO.Email))
             {
                 return BadRequest("User Already Exists");
             }
 
-            var requestedRole = string.IsNullOrWhiteSpace(userDTO.Role) ? "Developer" : userDTO.Role.Trim();
-
-            if (requestedRole != "Developer" && requestedRole != "Manager")
+            if (string.IsNullOrWhiteSpace(userDTO.Password) || userDTO.Password.Length < 6)
             {
-                return BadRequest("Role must be either Developer or Manager");
+                return BadRequest("Password must be at least 6 characters");
             }
 
             var user = new User
@@ -75,27 +77,10 @@ namespace server.Controllers
                 UserEmail = userDTO.Email,
                 UserName = userDTO.UserName,
                 HashedPassword = HashPassword(userDTO.Password),
+                Status = UserStatus.Active,
             };
 
             await _dbContext.Users.AddAsync(user);
-
-            var role = await _dbContext.Roles.FirstOrDefaultAsync(r => r.RoleName == requestedRole);
-
-            if (role == null)
-            {
-                role = await _dbContext.Roles.FirstOrDefaultAsync(r => r.RoleName == "Developer");
-            }
-
-            if (role != null) {
-                var newUserRole = new UserRole
-                {
-                    User = user,
-                    Role = role
-                };
-                await _dbContext.UserRoles.AddAsync(newUserRole);
-            }
-
-
             await _dbContext.SaveChangesAsync();
 
             return Ok(new { message = "Registration successful", user.UserId });
@@ -108,37 +93,41 @@ namespace server.Controllers
         [HttpGet("me")]
         public async Task<ActionResult> GetCurrentUser()
         {
-            //token -> userid
-            var userid = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            var user = await _current.LoadAsync();
+            if (user is null) return Unauthorized();
 
+            string? organizationName = null;
+            var roles = new List<string>();
 
-
-            if(userid == null)
+            if (user.OrganizationId is not null)
             {
-                return Unauthorized();
+                organizationName = await _dbContext.Organizations.AsNoTracking()
+                    .Where(o => o.OrganizationId == user.OrganizationId)
+                    .Select(o => o.Name)
+                    .FirstOrDefaultAsync();
+
+                roles = await (
+                    from ur in _dbContext.UserRoles.AsNoTracking()
+                    join r in _dbContext.Roles.AsNoTracking() on ur.RoleId equals r.RoleId
+                    where ur.UserId == user.UserId && r.OrganizationId == user.OrganizationId
+                    select r.RoleName
+                ).ToListAsync();
             }
 
-            int id = int.Parse(userid.Value);
-
-            var user = await _dbContext.Users
-                .AsNoTracking()
-                .Where(u => u.UserId == id)
-                .Select(u => new
-                {
-                    u.UserId,
-                    u.UserName,
-                    u.UserEmail,
-                    Roles = u.UserRoles!.Select(ur => ur.Role!.RoleName).ToList()
-                })
-                .FirstOrDefaultAsync();
-
-            if (user == null)
+            return Ok(new
             {
-                return Unauthorized();
-            }
-
-            return Ok(user);
+                user.UserId,
+                user.UserName,
+                user.UserEmail,
+                user.Status,
+                Organization = organizationName == null
+                    ? null
+                    : new { user.OrganizationId, Name = organizationName },
+                Roles = roles,
+                Permissions = _current.Permissions.ToList(),
+            });
         }
+
         private string HashPassword(string password)
         {
             return BCrypt.Net.BCrypt.HashPassword(password);

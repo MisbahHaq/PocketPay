@@ -13,7 +13,7 @@ interface Project {
 }
 
 export default function Projects() {
-  const { user } = useAuth();
+  const { has } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -23,8 +23,7 @@ export default function Projects() {
   const [showForm, setShowForm] = useState(false);
   const [creating, setCreating] = useState(false);
 
-  const roles = user?.roles ?? [];
-  const canCreate = roles.includes("Manager") || roles.includes("Admin");
+  const canCreate = has("create_project");
 
   const fetchProjects = async () => {
     try {
@@ -120,7 +119,7 @@ export default function Projects() {
           <p>
             {canCreate
               ? "Create your first project to get started."
-              : "A Manager or Admin needs to create a project first."}
+              : "You don't have permission to create projects yet — ask an administrator."}
           </p>
           {canCreate && !showForm && (
             <button className="btn btn-primary" onClick={() => setShowForm(true)}>

@@ -4,7 +4,7 @@ export function getErrorMessage(err: unknown, fallback: string): string {
   const data = error?.response?.data;
 
   if (status === 401) return "Your session has expired. Please log in again.";
-  if (status === 403) return "You need the Manager or Admin role to do that.";
+  if (status === 403) return "You don't have permission to do that.";
   if (status === 404) return "Not found.";
 
   if (typeof data === "string" && data.trim()) return data;

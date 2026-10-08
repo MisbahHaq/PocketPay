@@ -17,7 +17,13 @@ export default function Login() {
     setSubmitting(true);
     try {
       await login(username, password);
-      navigate("/dashboard");
+      const pending = sessionStorage.getItem("pendingInvite");
+      if (pending) {
+        sessionStorage.removeItem("pendingInvite");
+        navigate(`/invite/${pending}`, { replace: true });
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err) {
       setError(getErrorMessage(err, "Login failed"));
     } finally {

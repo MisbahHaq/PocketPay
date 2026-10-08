@@ -22,6 +22,48 @@ namespace server.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("server.Models.AuditLog", b =>
+                {
+                    b.Property<int>("AuditLogId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AuditLogId"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int?>("ActorUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Details")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("OrganizationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TargetId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("TargetType")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("AuditLogId");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("AuditLogs");
+                });
+
             modelBuilder.Entity("server.Models.Comment", b =>
                 {
                     b.Property<int>("CommentId")
@@ -53,6 +95,119 @@ namespace server.Migrations
                     b.ToTable("Comments");
                 });
 
+            modelBuilder.Entity("server.Models.Invitation", b =>
+                {
+                    b.Property<int>("InvitationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("InvitationId"));
+
+                    b.Property<DateTime?>("AcceptedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("AcceptedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("InvitedById")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OrganizationId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RoleId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("InvitationId");
+
+                    b.HasIndex("InvitedById");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("RoleId");
+
+                    b.HasIndex("Token");
+
+                    b.ToTable("Invitations");
+                });
+
+            modelBuilder.Entity("server.Models.Organization", b =>
+                {
+                    b.Property<int>("OrganizationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("OrganizationId"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CreatedById")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("OrganizationId");
+
+                    b.HasIndex("CreatedById");
+
+                    b.ToTable("Organizations");
+                });
+
+            modelBuilder.Entity("server.Models.Permission", b =>
+                {
+                    b.Property<int>("PermissionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PermissionId"));
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("PermissionId");
+
+                    b.HasIndex("Key")
+                        .IsUnique();
+
+                    b.ToTable("Permissions");
+                });
+
             modelBuilder.Entity("server.Models.Project", b =>
                 {
                     b.Property<int>("ProjectId")
@@ -69,6 +224,9 @@ namespace server.Migrations
                     b.Property<int>("CreatorId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("OrganizationId")
+                        .HasColumnType("int");
+
                     b.Property<string>("ProjectDescription")
                         .IsRequired()
                         .HasMaxLength(1000)
@@ -82,6 +240,8 @@ namespace server.Migrations
                     b.HasKey("ProjectId");
 
                     b.HasIndex("CreatorId");
+
+                    b.HasIndex("OrganizationId");
 
                     b.ToTable("Projects");
                 });
@@ -117,6 +277,17 @@ namespace server.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RoleId"));
 
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("IsSystem")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("OrganizationId")
+                        .HasColumnType("int");
+
                     b.Property<string>("RoleName")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -124,7 +295,24 @@ namespace server.Migrations
 
                     b.HasKey("RoleId");
 
+                    b.HasIndex("OrganizationId");
+
                     b.ToTable("Roles");
+                });
+
+            modelBuilder.Entity("server.Models.RolePermission", b =>
+                {
+                    b.Property<int>("RoleId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PermissionId")
+                        .HasColumnType("int");
+
+                    b.HasKey("RoleId", "PermissionId");
+
+                    b.HasIndex("PermissionId");
+
+                    b.ToTable("RolePermissions");
                 });
 
             modelBuilder.Entity("server.Models.TaskAssignment", b =>
@@ -193,9 +381,20 @@ namespace server.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("UserId"));
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("HashedPassword")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("OrganizationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<string>("UserEmail")
                         .IsRequired()
@@ -208,6 +407,8 @@ namespace server.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.HasKey("UserId");
+
+                    b.HasIndex("OrganizationId");
 
                     b.ToTable("Users");
                 });
@@ -225,6 +426,49 @@ namespace server.Migrations
                     b.HasIndex("RoleId");
 
                     b.ToTable("UserRoles");
+                });
+
+            modelBuilder.Entity("server.Models.Workspace", b =>
+                {
+                    b.Property<int>("WorkspaceId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("WorkspaceId"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("OrganizationId")
+                        .HasColumnType("int");
+
+                    b.HasKey("WorkspaceId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("Workspaces");
+                });
+
+            modelBuilder.Entity("server.Models.AuditLog", b =>
+                {
+                    b.HasOne("server.Models.User", "Actor")
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("server.Models.Organization", "Organization")
+                        .WithMany("AuditLogs")
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Actor");
+
+                    b.Navigation("Organization");
                 });
 
             modelBuilder.Entity("server.Models.Comment", b =>
@@ -246,6 +490,44 @@ namespace server.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("server.Models.Invitation", b =>
+                {
+                    b.HasOne("server.Models.User", "InvitedBy")
+                        .WithMany()
+                        .HasForeignKey("InvitedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("server.Models.Organization", "Organization")
+                        .WithMany("Invitations")
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("server.Models.Role", "Role")
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("InvitedBy");
+
+                    b.Navigation("Organization");
+
+                    b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("server.Models.Organization", b =>
+                {
+                    b.HasOne("server.Models.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CreatedBy");
+                });
+
             modelBuilder.Entity("server.Models.Project", b =>
                 {
                     b.HasOne("server.Models.User", "Creator")
@@ -254,7 +536,14 @@ namespace server.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("server.Models.Organization", "Organization")
+                        .WithMany("Projects")
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Creator");
+
+                    b.Navigation("Organization");
                 });
 
             modelBuilder.Entity("server.Models.ProjectMember", b =>
@@ -274,6 +563,35 @@ namespace server.Migrations
                     b.Navigation("Project");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("server.Models.Role", b =>
+                {
+                    b.HasOne("server.Models.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("server.Models.RolePermission", b =>
+                {
+                    b.HasOne("server.Models.Permission", "Permission")
+                        .WithMany("RolePermissions")
+                        .HasForeignKey("PermissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("server.Models.Role", "Role")
+                        .WithMany("RolePermissions")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Permission");
+
+                    b.Navigation("Role");
                 });
 
             modelBuilder.Entity("server.Models.TaskAssignment", b =>
@@ -314,6 +632,16 @@ namespace server.Migrations
                     b.Navigation("Project");
                 });
 
+            modelBuilder.Entity("server.Models.User", b =>
+                {
+                    b.HasOne("server.Models.Organization", "Organization")
+                        .WithMany("Users")
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Organization");
+                });
+
             modelBuilder.Entity("server.Models.UserRole", b =>
                 {
                     b.HasOne("server.Models.Role", "Role")
@@ -333,6 +661,35 @@ namespace server.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("server.Models.Workspace", b =>
+                {
+                    b.HasOne("server.Models.Organization", "Organization")
+                        .WithMany("Workspaces")
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("server.Models.Organization", b =>
+                {
+                    b.Navigation("AuditLogs");
+
+                    b.Navigation("Invitations");
+
+                    b.Navigation("Projects");
+
+                    b.Navigation("Users");
+
+                    b.Navigation("Workspaces");
+                });
+
+            modelBuilder.Entity("server.Models.Permission", b =>
+                {
+                    b.Navigation("RolePermissions");
+                });
+
             modelBuilder.Entity("server.Models.Project", b =>
                 {
                     b.Navigation("ProjectMembers");
@@ -342,6 +699,8 @@ namespace server.Migrations
 
             modelBuilder.Entity("server.Models.Role", b =>
                 {
+                    b.Navigation("RolePermissions");
+
                     b.Navigation("UserRoles");
                 });
 

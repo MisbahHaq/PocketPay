@@ -65,7 +65,7 @@ const BrutalTooltip = ({
 };
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, has } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -106,7 +106,7 @@ export default function Dashboard() {
   }, [projects]);
 
   const roles = user?.roles ?? [];
-  const canCreate = roles.includes("Manager") || roles.includes("Admin");
+  const canCreate = has("create_project");
 
   return (
     <Layout>

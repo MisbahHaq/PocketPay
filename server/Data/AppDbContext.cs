@@ -26,6 +26,18 @@ namespace server.Data
 
         public DbSet<UserRole> UserRoles { get; set; }
 
+        public DbSet<Organization> Organizations { get; set; }
+
+        public DbSet<Workspace> Workspaces { get; set; }
+
+        public DbSet<Invitation> Invitations { get; set; }
+
+        public DbSet<Permission> Permissions { get; set; }
+
+        public DbSet<RolePermission> RolePermissions { get; set; }
+
+        public DbSet<AuditLog> AuditLogs { get; set; }
+
         //fluent api
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -44,6 +56,140 @@ namespace server.Data
                 entity.Property(u => u.UserEmail)
                       .IsRequired()
                       .HasMaxLength(150);
+
+                entity.Property(u => u.Status)
+                      .IsRequired()
+                      .HasMaxLength(30);
+
+                entity.HasOne(u => u.Organization)
+                      .WithMany(o => o.Users)
+                      .HasForeignKey(u => u.OrganizationId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            //Organization
+            modelBuilder.Entity<Organization>(entity =>
+            {
+                entity.HasKey(o => o.OrganizationId);
+
+                entity.Property(o => o.Name)
+                      .IsRequired()
+                      .HasMaxLength(200);
+
+                entity.Property(o => o.Description)
+                      .HasMaxLength(1000);
+
+                entity.HasOne(o => o.CreatedBy)
+                      .WithMany()
+                      .HasForeignKey(o => o.CreatedById)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            //Workspace
+            modelBuilder.Entity<Workspace>(entity =>
+            {
+                entity.HasKey(w => w.WorkspaceId);
+
+                entity.Property(w => w.Name)
+                      .IsRequired()
+                      .HasMaxLength(200);
+
+                entity.HasOne(w => w.Organization)
+                      .WithMany(o => o.Workspaces)
+                      .HasForeignKey(w => w.OrganizationId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            //Invitation
+            modelBuilder.Entity<Invitation>(entity =>
+            {
+                entity.HasKey(i => i.InvitationId);
+
+                entity.Property(i => i.Email)
+                      .IsRequired()
+                      .HasMaxLength(300);
+
+                entity.Property(i => i.Token)
+                      .IsRequired()
+                      .HasMaxLength(200);
+
+                entity.HasIndex(i => i.Token);
+
+                entity.Property(i => i.Status)
+                      .IsRequired()
+                      .HasMaxLength(30);
+
+                entity.HasOne(i => i.Organization)
+                      .WithMany(o => o.Invitations)
+                      .HasForeignKey(i => i.OrganizationId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(i => i.Role)
+                      .WithMany()
+                      .HasForeignKey(i => i.RoleId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(i => i.InvitedBy)
+                      .WithMany()
+                      .HasForeignKey(i => i.InvitedById)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            //Permission
+            modelBuilder.Entity<Permission>(entity =>
+            {
+                entity.HasKey(p => p.PermissionId);
+
+                entity.Property(p => p.Key)
+                      .IsRequired()
+                      .HasMaxLength(100);
+
+                entity.HasIndex(p => p.Key).IsUnique();
+
+                entity.Property(p => p.Description)
+                      .HasMaxLength(500);
+            });
+
+            //RolePermission
+            modelBuilder.Entity<RolePermission>(entity =>
+            {
+                entity.HasKey(rp => new { rp.RoleId, rp.PermissionId });
+
+                entity.HasOne(rp => rp.Role)
+                      .WithMany(r => r.RolePermissions)
+                      .HasForeignKey(rp => rp.RoleId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(rp => rp.Permission)
+                      .WithMany(p => p.RolePermissions)
+                      .HasForeignKey(rp => rp.PermissionId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            //AuditLog
+            modelBuilder.Entity<AuditLog>(entity =>
+            {
+                entity.HasKey(a => a.AuditLogId);
+
+                entity.Property(a => a.Action)
+                      .IsRequired()
+                      .HasMaxLength(100);
+
+                entity.Property(a => a.TargetType)
+                      .HasMaxLength(100);
+
+                entity.Property(a => a.TargetId)
+                      .HasMaxLength(100);
+
+                entity.HasOne(a => a.Organization)
+                      .WithMany(o => o.AuditLogs)
+                      .HasForeignKey(a => a.OrganizationId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(a => a.Actor)
+                      .WithMany()
+                      .HasForeignKey(a => a.ActorUserId)
+                      .OnDelete(DeleteBehavior.Restrict);
             });
 
             //Project
@@ -61,6 +207,11 @@ namespace server.Data
                 entity.Property(p => p.CreatedAt)
                       .HasColumnType("datetime2")
                       .HasDefaultValueSql("GETUTCDATE()");
+
+                entity.HasOne(p => p.Organization)
+                      .WithMany(o => o.Projects)
+                      .HasForeignKey(p => p.OrganizationId)
+                      .OnDelete(DeleteBehavior.Restrict);
 
                 // Creator relationship (User -> Projects)
                 entity.HasOne(p => p.Creator)
@@ -163,6 +314,14 @@ namespace server.Data
                 entity.Property(r => r.RoleName)
                       .IsRequired()
                       .HasMaxLength(100);
+
+                entity.Property(r => r.Description)
+                      .HasMaxLength(500);
+
+                entity.HasOne(r => r.Organization)
+                      .WithMany()
+                      .HasForeignKey(r => r.OrganizationId)
+                      .OnDelete(DeleteBehavior.Restrict);
             });
 
 
