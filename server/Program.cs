@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -21,6 +21,7 @@ builder.Services
     });
 
 builder.Services.AddOpenApi();
+builder.Services.AddCors(options => { options.AddPolicy("AllowReact", policy => { policy.WithOrigins("http://localhost:5173", "http://localhost:5174").AllowAnyHeader().AllowAnyMethod(); }); });
 
 builder.Services.AddScoped<JwtHelper>();
 
@@ -69,10 +70,12 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference("/scalar");
 }
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
+app.UseCors("AllowReact");
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
 app.Run();
+
