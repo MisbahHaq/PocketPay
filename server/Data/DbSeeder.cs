@@ -26,22 +26,19 @@ namespace server.Data
             }
 
             //Seed Users
-            if (!_dbContext.Users.Any())
+            var admin = await _dbContext.Users.FirstOrDefaultAsync(u => u.UserName == "Admin");
+
+            if (admin == null)
             {
-                var admin = new User
+                admin = new User
                 {
                     UserName = "Admin",
-                    UserEmail= "admin@system.com"
+                    UserEmail = "admin@system.com",
+                    HashedPassword = BCrypt.Net.BCrypt.HashPassword("Admin@123")
                 };
                 await _dbContext.AddAsync(admin);
 
                 var adminRole = await _dbContext.Roles.FirstOrDefaultAsync(role => role.RoleName == "Admin");
-             
-
-                //var newRole = new UserRole { 
-                //   UserId = admin.UserId,
-                //   RoleId = adminRole!.RoleId
-                //};
 
                 var newRole = new UserRole
                 {
@@ -51,7 +48,11 @@ namespace server.Data
 
                 await _dbContext.UserRoles.AddAsync(newRole);
                 await _dbContext.SaveChangesAsync();
-
+            }
+            else if (string.IsNullOrWhiteSpace(admin.HashedPassword))
+            {
+                admin.HashedPassword = BCrypt.Net.BCrypt.HashPassword("Admin@123");
+                await _dbContext.SaveChangesAsync();
             }
 
         }

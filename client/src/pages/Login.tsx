@@ -1,40 +1,76 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { getErrorMessage } from "../utils/errors";
 
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
+    setSubmitting(true);
     try {
       await login(username, password);
       navigate("/dashboard");
-    } catch (err: any) {
-      setError(err.response?.data || "Login failed");
+    } catch (err) {
+      setError(getErrorMessage(err, "Login failed"));
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
-    <div style={{ maxWidth: 400, margin: "40px auto", padding: 20 }}>
-      <h2>Login</h2>
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: 10 }}>
-          <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Username" style={{ width: "100%", padding: 8 }} />
+    <div className="auth-shell">
+      <div className="auth-card">
+        <div className="auth-brand">
+          <span className="brand-mark">&#9670;</span> Inventory
         </div>
-        <div style={{ marginBottom: 10 }}>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" style={{ width: "100%", padding: 8 }} />
-        </div>
-        {error && <div style={{ color: "red", marginBottom: 10 }}>{error}</div>}
-        <button type="submit" style={{ width: "100%", padding: 8 }}>Login</button>
-      </form>
-      <p style={{ marginTop: 10 }}>
-        Don't have an account? <a href="/register">Register</a>
-      </p>
+        <h1>Welcome back</h1>
+        <p className="subtitle">Sign in to manage your projects.</p>
+
+        <form onSubmit={handleSubmit}>
+          <div className="field">
+            <label htmlFor="username">Username</label>
+            <input
+              id="username"
+              className="input"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="e.g. misbah"
+              autoFocus
+              required
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              className="input"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Your password"
+              required
+            />
+          </div>
+
+          {error && <div className="alert alert-error">{error}</div>}
+
+          <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
+            {submitting ? "Signing in..." : "Sign in"}
+          </button>
+        </form>
+
+        <p className="auth-footer">
+          Don't have an account? <Link to="/register">Create one</Link>
+        </p>
+      </div>
     </div>
   );
 }

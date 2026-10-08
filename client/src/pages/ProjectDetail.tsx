@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import api from "../services/api";
+import Layout from "../components/Layout";
+import { getErrorMessage } from "../utils/errors";
 
 interface Project {
   ProjectId: number;
@@ -16,28 +18,43 @@ export default function ProjectDetail() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const fetch = async () => {
+    const fetchProject = async () => {
       try {
         const res = await api.get<Project>(`/projects/${id}`);
         setProject(res.data);
-      } catch (err: any) {
-        setError(err.response?.data || "Failed");
+      } catch (err) {
+        setError(getErrorMessage(err, "Failed to load project"));
       } finally {
         setLoading(false);
       }
     };
-    fetch();
+    fetchProject();
   }, [id]);
 
   return (
-    <div style={{ padding: 20 }}>
-      {loading ? <div>Loading...</div> : error ? <div style={{ color: "red" }}>{error}</div> : project && (
-        <div>
-          <h2>{project.ProjectName}</h2>
-          <p>{project.Description}</p>
-          <p>Created by: {project.CreatorName}</p>
+    <Layout>
+      <Link to="/projects" className="back-link">
+        &larr; Back to projects
+      </Link>
+
+      {loading ? (
+        <div className="spinner" />
+      ) : error ? (
+        <div className="alert alert-error">{error}</div>
+      ) : project && (
+        <div className="card" style={{ padding: 28 }}>
+          <div className="page-header" style={{ marginBottom: 16 }}>
+            <div>
+              <h1>{project.ProjectName}</h1>
+              <p className="subtitle">Created by {project.CreatorName}</p>
+            </div>
+            <span className="badge">#{project.ProjectId}</span>
+          </div>
+          <p style={{ fontSize: 15.5, lineHeight: 1.6 }}>
+            {project.Description || <span className="muted">No description provided.</span>}
+          </p>
         </div>
       )}
-    </div>
+    </Layout>
   );
 }

@@ -8,7 +8,7 @@ import { useAuth } from "./context/AuthContext";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { token, loading } = useAuth();
-  if (loading) return <div style={{ padding: 20 }}>Loading...</div>;
+  if (loading) return <div className="spinner" />;
   if (!token) return <Navigate to="/login" replace />;
   return <>{children}</>;
 };

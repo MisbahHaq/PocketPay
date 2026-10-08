@@ -10,7 +10,7 @@
 
         public DateTime ExpiresIn { get; set; }
 
-        public List<string> Roles = new();
+        public List<string> Roles { get; set; } = new();
 
     }
 

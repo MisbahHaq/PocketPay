@@ -22,7 +22,7 @@ namespace server.Controllers
 
         //create project
         [HttpPost("create")]
-        [Authorize(Roles = "Manager")]
+        [Authorize(Roles = "Manager,Admin")]
         public async Task<ActionResult> CreateProject(CreateProjectDTO dto)
         {
             int userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);

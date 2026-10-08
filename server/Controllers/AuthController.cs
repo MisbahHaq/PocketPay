@@ -63,6 +63,12 @@ namespace server.Controllers
                 return BadRequest("User Already Exists");
             }
 
+            var requestedRole = string.IsNullOrWhiteSpace(userDTO.Role) ? "Developer" : userDTO.Role.Trim();
+
+            if (requestedRole != "Developer" && requestedRole != "Manager")
+            {
+                return BadRequest("Role must be either Developer or Manager");
+            }
 
             var user = new User
             {
@@ -73,13 +79,18 @@ namespace server.Controllers
 
             await _dbContext.Users.AddAsync(user);
 
-            var defaultRole = await _dbContext.Roles.FirstOrDefaultAsync(role => role.RoleName == "Developer");
+            var role = await _dbContext.Roles.FirstOrDefaultAsync(r => r.RoleName == requestedRole);
 
-            if (defaultRole != null) {
+            if (role == null)
+            {
+                role = await _dbContext.Roles.FirstOrDefaultAsync(r => r.RoleName == "Developer");
+            }
+
+            if (role != null) {
                 var newUserRole = new UserRole
                 {
                     User = user,
-                    Role = defaultRole
+                    Role = role
                 };
                 await _dbContext.UserRoles.AddAsync(newUserRole);
             }
@@ -87,7 +98,7 @@ namespace server.Controllers
 
             await _dbContext.SaveChangesAsync();
 
-            return Ok(user);
+            return Ok(new { message = "Registration successful", user.UserId });
         }
 
 
@@ -100,7 +111,7 @@ namespace server.Controllers
             //token -> userid
             var userid = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
 
-            
+
 
             if(userid == null)
             {
@@ -109,8 +120,24 @@ namespace server.Controllers
 
             int id = int.Parse(userid.Value);
 
-            var user = await _dbContext.Users.FirstOrDefaultAsync(user => user.UserId == id);
-            return  Ok(user);
+            var user = await _dbContext.Users
+                .AsNoTracking()
+                .Where(u => u.UserId == id)
+                .Select(u => new
+                {
+                    u.UserId,
+                    u.UserName,
+                    u.UserEmail,
+                    Roles = u.UserRoles!.Select(ur => ur.Role!.RoleName).ToList()
+                })
+                .FirstOrDefaultAsync();
+
+            if (user == null)
+            {
+                return Unauthorized();
+            }
+
+            return Ok(user);
         }
         private string HashPassword(string password)
         {
