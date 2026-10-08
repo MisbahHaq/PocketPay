@@ -6,6 +6,8 @@
         public string ProjectName { get; set; } = string.Empty;
         public string ProjectDescription { get; set; } = string.Empty;
 
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
         // Ownership
         public int CreatorId { get; set; }
         public User ? Creator { get; set; } 

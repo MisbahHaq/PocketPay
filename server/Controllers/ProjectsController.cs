@@ -106,7 +106,8 @@ namespace server.Controllers
                     ProjectName = p.ProjectName,
                     ProjectId = p.ProjectId,
                     CreatorName = p.Creator!.UserName,
-                    Description = p.ProjectDescription
+                    Description = p.ProjectDescription,
+                    CreatedAt = p.CreatedAt
                 })
                 .FirstOrDefaultAsync(p => p.ProjectId == id);
 
@@ -131,7 +132,8 @@ namespace server.Controllers
                     ProjectName = p.ProjectName,
                     ProjectId = p.ProjectId,
                     CreatorName = p.Creator!.UserName,
-                    Description = p.ProjectDescription
+                    Description = p.ProjectDescription,
+                    CreatedAt = p.CreatedAt
                 })
                 .ToListAsync();
 

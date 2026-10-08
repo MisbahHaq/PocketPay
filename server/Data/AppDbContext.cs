@@ -58,6 +58,10 @@ namespace server.Data
                 entity.Property(p => p.ProjectDescription)
                       .HasMaxLength(1000);
 
+                entity.Property(p => p.CreatedAt)
+                      .HasColumnType("datetime2")
+                      .HasDefaultValueSql("GETUTCDATE()");
+
                 // Creator relationship (User -> Projects)
                 entity.HasOne(p => p.Creator)
                       .WithMany(u => u.Projects)

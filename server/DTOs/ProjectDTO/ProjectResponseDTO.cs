@@ -8,5 +8,7 @@
         public string Description { get; set; } = String.Empty;
 
         public string CreatorName { get; set; } = String.Empty;
+
+        public DateTime CreatedAt { get; set; }
     }
 }
