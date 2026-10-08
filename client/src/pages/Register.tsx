@@ -24,7 +24,7 @@ export default function Register() {
     setSubmitting(true);
     try {
       await register(username, email, password, role);
-      navigate("/login");
+      navigate("/dashboard");
     } catch (err) {
       setError(getErrorMessage(err, "Registration failed"));
     } finally {
