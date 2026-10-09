@@ -195,7 +195,9 @@ namespace server.Controllers
         [HttpGet]
         public async Task<ActionResult> List()
         {
+            var activeKeys = PermissionKeys.All.Select(p => p.Key).ToList();
             var permissions = await _db.Permissions.AsNoTracking()
+                .Where(p => activeKeys.Contains(p.Key))
                 .OrderBy(p => p.Key)
                 .Select(p => new PermissionCatalogDTO { Key = p.Key, Description = p.Description })
                 .ToListAsync();

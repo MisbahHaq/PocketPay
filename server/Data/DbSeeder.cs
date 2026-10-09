@@ -6,7 +6,17 @@ namespace server.Data
 {
     public static class DbSeeder
     {
-        public static async Task SeedAsync(AppDbContext _dbContext)
+        //demo logins, one per built-in role, used to showcase role-based access.
+        //username, email, password, role name, short description of what the role can do
+        private static readonly (string UserName, string Email, string Password, string Role)[] DemoAccounts = new[]
+        {
+            ("admin",    "admin@system.com",   "Admin@123",    RoleTemplates.OrgAdmin),
+            ("manager",  "manager@demo.com",   "Manager@123",  RoleTemplates.Manager),
+            ("employee", "employee@demo.com",  "Employee@123", RoleTemplates.Employee),
+            ("viewer",   "viewer@demo.com",    "Viewer@123",   RoleTemplates.Client),
+        };
+
+        public static async Task SeedAsync(AppDbContext _dbContext, bool seedDemoData = false)
         {
             await _dbContext.Database.MigrateAsync();
 
@@ -130,33 +140,108 @@ namespace server.Data
                 }
             }
 
-            //4) reconcile system roles so newly added permissions are granted.
-            //   Organization Admin always receives the full catalog.
-            var allPermissions = await _dbContext.Permissions.ToListAsync();
-            var adminRoles = await _dbContext.Roles
-                .Where(r => r.IsSystem && r.RoleName == RoleTemplates.OrgAdmin)
+            //4) sync built-in (system) roles to the current permission templates.
+            //   Keeps Organization Admin on the full catalog and refreshes Manager/
+            //   Employee/Client when the template evolves. Custom roles are untouched.
+            var permissionsByKey = await _dbContext.Permissions
+                .ToDictionaryAsync(p => p.Key, p => p.PermissionId);
+
+            var systemRoles = await _dbContext.Roles
+                .Where(r => r.IsSystem)
                 .ToListAsync();
 
-            foreach (var role in adminRoles)
+            foreach (var role in systemRoles)
             {
-                var grantedIds = await _dbContext.RolePermissions
+                List<string> desiredKeys;
+                if (role.RoleName == RoleTemplates.OrgAdmin)
+                {
+                    desiredKeys = PermissionKeys.All.Select(p => p.Key).ToList();
+                }
+                else if (!RoleTemplates.Definitions.TryGetValue(role.RoleName, out desiredKeys!))
+                {
+                    continue;
+                }
+
+                var desiredIds = desiredKeys
+                    .Where(permissionsByKey.ContainsKey)
+                    .Select(k => permissionsByKey[k])
+                    .ToHashSet();
+
+                var current = await _dbContext.RolePermissions
                     .Where(rp => rp.RoleId == role.RoleId)
-                    .Select(rp => rp.PermissionId)
                     .ToListAsync();
 
-                foreach (var permission in allPermissions)
+                var currentIds = current.Select(rp => rp.PermissionId).ToHashSet();
+
+                //remove permissions no longer part of the role
+                foreach (var rp in current.Where(rp => !desiredIds.Contains(rp.PermissionId)))
                 {
-                    if (!grantedIds.Contains(permission.PermissionId))
+                    _dbContext.RolePermissions.Remove(rp);
+                }
+
+                //add newly required permissions
+                foreach (var id in desiredIds.Where(id => !currentIds.Contains(id)))
+                {
+                    _dbContext.RolePermissions.Add(new RolePermission
                     {
-                        _dbContext.RolePermissions.Add(new RolePermission
-                        {
-                            RoleId = role.RoleId,
-                            PermissionId = permission.PermissionId,
-                        });
-                    }
+                        RoleId = role.RoleId,
+                        PermissionId = id,
+                    });
                 }
             }
             await _dbContext.SaveChangesAsync();
+
+            //5) demo accounts (opt-in via "SeedDemoData"): one login per built-in role
+            //   so each access level can be demonstrated. Idempotent - safe to run every start.
+            if (seedDemoData)
+            {
+                var org = await _dbContext.Organizations
+                    .OrderBy(o => o.OrganizationId)
+                    .FirstOrDefaultAsync();
+
+                if (org is not null)
+                {
+                    var rolesByName = await _dbContext.Roles
+                        .Where(r => r.OrganizationId == org.OrganizationId)
+                        .ToDictionaryAsync(r => r.RoleName, r => r.RoleId);
+
+                    foreach (var demo in DemoAccounts)
+                    {
+                        var user = await _dbContext.Users
+                            .FirstOrDefaultAsync(u => u.UserName == demo.UserName);
+
+                        if (user is null)
+                        {
+                            user = new User
+                            {
+                                UserName = demo.UserName,
+                                UserEmail = demo.Email,
+                                HashedPassword = BCrypt.Net.BCrypt.HashPassword(demo.Password),
+                                Status = UserStatus.Active,
+                                OrganizationId = org.OrganizationId,
+                            };
+                            _dbContext.Users.Add(user);
+                            await _dbContext.SaveChangesAsync();
+                        }
+                        else if (user.OrganizationId is null)
+                        {
+                            user.OrganizationId = org.OrganizationId;
+                            user.Status = UserStatus.Active;
+                            await _dbContext.SaveChangesAsync();
+                        }
+
+                        if (!rolesByName.TryGetValue(demo.Role, out var roleId)) continue;
+
+                        var hasRole = await _dbContext.UserRoles
+                            .AnyAsync(ur => ur.UserId == user.UserId && ur.RoleId == roleId);
+                        if (!hasRole)
+                        {
+                            _dbContext.UserRoles.Add(new UserRole { UserId = user.UserId, RoleId = roleId });
+                            await _dbContext.SaveChangesAsync();
+                        }
+                    }
+                }
+            }
 
             async Task<string?> MapLegacyRole(int userId)
             {
