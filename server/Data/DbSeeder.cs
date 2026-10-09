@@ -11,14 +11,16 @@ namespace server.Data
             await _dbContext.Database.MigrateAsync();
 
             //1) permission catalog (global, shared by every organization)
-            if (!await _dbContext.Permissions.AnyAsync())
+            //   upsert so newly introduced permissions are picked up on existing databases
+            var existingKeys = await _dbContext.Permissions.Select(p => p.Key).ToListAsync();
+            foreach (var (key, description) in PermissionKeys.All)
             {
-                foreach (var (key, description) in PermissionKeys.All)
+                if (!existingKeys.Contains(key))
                 {
                     _dbContext.Permissions.Add(new Permission { Key = key, Description = description });
                 }
-                await _dbContext.SaveChangesAsync();
             }
+            await _dbContext.SaveChangesAsync();
 
             //2) development admin account (only when the database has no users at all)
             if (!await _dbContext.Users.AnyAsync())
@@ -127,6 +129,34 @@ namespace server.Data
                     await _dbContext.SaveChangesAsync();
                 }
             }
+
+            //4) reconcile system roles so newly added permissions are granted.
+            //   Organization Admin always receives the full catalog.
+            var allPermissions = await _dbContext.Permissions.ToListAsync();
+            var adminRoles = await _dbContext.Roles
+                .Where(r => r.IsSystem && r.RoleName == RoleTemplates.OrgAdmin)
+                .ToListAsync();
+
+            foreach (var role in adminRoles)
+            {
+                var grantedIds = await _dbContext.RolePermissions
+                    .Where(rp => rp.RoleId == role.RoleId)
+                    .Select(rp => rp.PermissionId)
+                    .ToListAsync();
+
+                foreach (var permission in allPermissions)
+                {
+                    if (!grantedIds.Contains(permission.PermissionId))
+                    {
+                        _dbContext.RolePermissions.Add(new RolePermission
+                        {
+                            RoleId = role.RoleId,
+                            PermissionId = permission.PermissionId,
+                        });
+                    }
+                }
+            }
+            await _dbContext.SaveChangesAsync();
 
             async Task<string?> MapLegacyRole(int userId)
             {

@@ -3,7 +3,7 @@ using server.Models;
 
 namespace server.Data
 {
-    public class AppDbContext:DbContext
+    public partial class AppDbContext:DbContext
     {
         public AppDbContext(DbContextOptions options):base(options)
         {
@@ -43,6 +43,155 @@ namespace server.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            // Inventory
+            modelBuilder.Entity<server.Models.Inventory.StockBalance>(entity =>
+            {
+                entity.HasKey(sb => new { sb.WarehouseId, sb.ProductId });
+                entity.Property(sb => sb.QuantityOnHand).HasColumnType("decimal(18,2)");
+                entity.Property(sb => sb.ReservedQty).HasColumnType("decimal(18,2)");
+                entity.HasOne(sb => sb.Warehouse).WithMany(w => w.StockBalances).HasForeignKey(sb => sb.WarehouseId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(sb => sb.Product).WithMany(p => p.StockBalances).HasForeignKey(sb => sb.ProductId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<server.Models.Inventory.Category>(entity =>
+            {
+                entity.HasKey(c => c.CategoryId);
+                entity.HasOne(c => c.Organization).WithMany().HasForeignKey(c => c.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<server.Models.Inventory.UnitOfMeasure>(entity =>
+            {
+                entity.HasKey(u => u.UnitId);
+                entity.HasOne(u => u.Organization).WithMany().HasForeignKey(u => u.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<server.Models.Inventory.Supplier>(entity =>
+            {
+                entity.HasKey(s => s.SupplierId);
+                entity.HasOne(s => s.Organization).WithMany().HasForeignKey(s => s.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<server.Models.Inventory.Customer>(entity =>
+            {
+                entity.HasKey(c => c.CustomerId);
+                entity.HasOne(c => c.Organization).WithMany().HasForeignKey(c => c.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<server.Models.Inventory.Warehouse>(entity =>
+            {
+                entity.HasKey(w => w.WarehouseId);
+                entity.HasOne(w => w.Organization).WithMany().HasForeignKey(w => w.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<server.Models.Inventory.PurchaseOrder>(entity =>
+            {
+                entity.HasKey(p => p.POId);
+                entity.Property(p => p.TotalAmount).HasColumnType("decimal(18,2)");
+                entity.HasOne(p => p.Organization).WithMany().HasForeignKey(p => p.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(p => p.Supplier).WithMany().HasForeignKey(p => p.SupplierId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(p => p.CreatedBy).WithMany().HasForeignKey(p => p.CreatedById).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(p => p.ApprovedBy).WithMany().HasForeignKey(p => p.ApprovedById).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<server.Models.Inventory.GoodsReceiptNote>(entity =>
+            {
+                entity.HasKey(g => g.GRNId);
+                entity.HasOne(g => g.Organization).WithMany().HasForeignKey(g => g.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(g => g.Supplier).WithMany().HasForeignKey(g => g.SupplierId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(g => g.Warehouse).WithMany().HasForeignKey(g => g.WarehouseId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(g => g.PO).WithMany().HasForeignKey(g => g.POId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(g => g.ReceivedBy).WithMany().HasForeignKey(g => g.ReceivedById).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<server.Models.Inventory.SalesOrder>(entity =>
+            {
+                entity.HasKey(s => s.SOId);
+                entity.Property(s => s.TotalAmount).HasColumnType("decimal(18,2)");
+                entity.HasOne(s => s.Organization).WithMany().HasForeignKey(s => s.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(s => s.Customer).WithMany().HasForeignKey(s => s.CustomerId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(s => s.Warehouse).WithMany().HasForeignKey(s => s.WarehouseId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(s => s.CreatedBy).WithMany().HasForeignKey(s => s.CreatedById).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<server.Models.Inventory.StockTransfer>(entity =>
+            {
+                entity.HasKey(t => t.TransferId);
+                entity.HasOne(t => t.Organization).WithMany().HasForeignKey(t => t.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(t => t.FromWarehouse).WithMany().HasForeignKey(t => t.FromWarehouseId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(t => t.ToWarehouse).WithMany().HasForeignKey(t => t.ToWarehouseId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(t => t.CreatedBy).WithMany().HasForeignKey(t => t.CreatedById).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<server.Models.Inventory.StockAdjustment>(entity =>
+            {
+                entity.HasKey(a => a.AdjustmentId);
+                entity.HasOne(a => a.Organization).WithMany().HasForeignKey(a => a.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(a => a.Warehouse).WithMany().HasForeignKey(a => a.WarehouseId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(a => a.AdjustedBy).WithMany().HasForeignKey(a => a.AdjustedById).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<server.Models.Inventory.Product>(entity =>
+            {
+                entity.HasKey(p => p.ProductId);
+                entity.HasIndex(p => new { p.OrganizationId, p.SKU }).IsUnique();
+                entity.Property(p => p.CostPrice).HasColumnType("decimal(18,2)");
+                entity.Property(p => p.SellingPrice).HasColumnType("decimal(18,2)");
+                entity.HasOne(p => p.Organization).WithMany().HasForeignKey(p => p.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(p => p.Category).WithMany(c => c.Products).HasForeignKey(p => p.CategoryId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(p => p.Unit).WithMany(u => u.Products).HasForeignKey(p => p.UnitId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(p => p.CreatedBy).WithMany().HasForeignKey(p => p.CreatedById).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<server.Models.Inventory.StockMovement>(entity =>
+            {
+                entity.HasKey(sm => sm.StockMovementId);
+                entity.Property(sm => sm.Quantity).HasColumnType("decimal(18,2)");
+                entity.Property(sm => sm.UnitCost).HasColumnType("decimal(18,2)");
+                entity.HasOne(sm => sm.Organization).WithMany().HasForeignKey(sm => sm.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(sm => sm.Product).WithMany().HasForeignKey(sm => sm.ProductId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(sm => sm.Warehouse).WithMany().HasForeignKey(sm => sm.WarehouseId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(sm => sm.MovedBy).WithMany().HasForeignKey(sm => sm.MovedByUserId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<server.Models.Inventory.PurchaseOrderItem>(entity =>
+            {
+                entity.HasKey(i => i.POItemId);
+                entity.Property(i => i.Quantity).HasColumnType("decimal(18,2)");
+                entity.Property(i => i.ReceivedQty).HasColumnType("decimal(18,2)");
+                entity.Property(i => i.UnitPrice).HasColumnType("decimal(18,2)");
+                entity.Property(i => i.LineTotal).HasColumnType("decimal(18,2)");
+                entity.HasOne(i => i.PO).WithMany(p => p.Items).HasForeignKey(i => i.POId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(i => i.Product).WithMany().HasForeignKey(i => i.ProductId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<server.Models.Inventory.GoodsReceiptItem>(entity =>
+            {
+                entity.HasKey(g => g.GRNItemId);
+                entity.Property(i => i.QuantityReceived).HasColumnType("decimal(18,2)");
+                entity.HasOne(i => i.GRN).WithMany(g => g.Items).HasForeignKey(i => i.GRNId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(i => i.Product).WithMany().HasForeignKey(i => i.ProductId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<server.Models.Inventory.SalesOrderItem>(entity =>
+            {
+                entity.HasKey(i => i.SOItemId);
+                entity.Property(i => i.Quantity).HasColumnType("decimal(18,2)");
+                entity.Property(i => i.FulfilledQty).HasColumnType("decimal(18,2)");
+                entity.Property(i => i.UnitPrice).HasColumnType("decimal(18,2)");
+                entity.Property(i => i.LineTotal).HasColumnType("decimal(18,2)");
+                entity.HasOne(i => i.SO).WithMany(s => s.Items).HasForeignKey(i => i.SOId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(i => i.Product).WithMany().HasForeignKey(i => i.ProductId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<server.Models.Inventory.StockTransferItem>(entity =>
+            {
+                entity.HasKey(i => i.TransferItemId);
+                entity.Property(i => i.Quantity).HasColumnType("decimal(18,2)");
+                entity.HasOne(i => i.Transfer).WithMany(t => t.Items).HasForeignKey(i => i.TransferId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(i => i.Product).WithMany().HasForeignKey(i => i.ProductId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<server.Models.Inventory.StockAdjustmentItem>(entity =>
+            {
+                entity.HasKey(i => i.AdjustmentItemId);
+                entity.Property(i => i.Quantity).HasColumnType("decimal(18,2)");
+                entity.Property(i => i.OldQty).HasColumnType("decimal(18,2)");
+                entity.Property(i => i.NewQty).HasColumnType("decimal(18,2)");
+                entity.HasOne(i => i.Adjustment).WithMany(a => a.Items).HasForeignKey(i => i.AdjustmentId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(i => i.Product).WithMany().HasForeignKey(i => i.ProductId).OnDelete(DeleteBehavior.Restrict);
+            });
 
             //user
             modelBuilder.Entity<User>(entity =>

@@ -2,8 +2,12 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
-import Projects from "./pages/Projects";
-import ProjectDetail from "./pages/ProjectDetail";
+import Products from "./pages/Products";
+import StockSummary from "./pages/StockSummary";
+import StockMovements from "./pages/StockMovements";
+import PurchaseOrders from "./pages/PurchaseOrders";
+import SalesOrders from "./pages/SalesOrders";
+import Masters from "./pages/Masters";
 import CreateOrganization from "./pages/CreateOrganization";
 import InviteAccept from "./pages/InviteAccept";
 import Members from "./pages/Members";
@@ -83,24 +87,72 @@ function App() {
         }
       />
       <Route
-        path="/projects"
+        path="/products"
         element={
           <ProtectedRoute>
             <AccountGate>
               <RequireOrg>
-                <Projects />
+                <Products />
               </RequireOrg>
             </AccountGate>
           </ProtectedRoute>
         }
       />
       <Route
-        path="/projects/:id"
+        path="/stock"
         element={
           <ProtectedRoute>
             <AccountGate>
               <RequireOrg>
-                <ProjectDetail />
+                <StockSummary />
+              </RequireOrg>
+            </AccountGate>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/stock/movements"
+        element={
+          <ProtectedRoute>
+            <AccountGate>
+              <RequireOrg>
+                <StockMovements />
+              </RequireOrg>
+            </AccountGate>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/purchase-orders"
+        element={
+          <ProtectedRoute>
+            <AccountGate>
+              <RequireOrg>
+                <PurchaseOrders />
+              </RequireOrg>
+            </AccountGate>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/sales-orders"
+        element={
+          <ProtectedRoute>
+            <AccountGate>
+              <RequireOrg>
+                <SalesOrders />
+              </RequireOrg>
+            </AccountGate>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/masters"
+        element={
+          <ProtectedRoute>
+            <AccountGate>
+              <RequireOrg>
+                <Masters />
               </RequireOrg>
             </AccountGate>
           </ProtectedRoute>

@@ -30,7 +30,7 @@ namespace server.Controllers
 
         //create project
         [HttpPost("create")]
-        [Permission(PermissionKeys.CreateProject)]
+        [Permission(PermissionKeys.ManageProducts)]
         public async Task<ActionResult> CreateProject(CreateProjectDTO dto)
         {
             var user = await _current.RequireOrgUserAsync();
@@ -54,7 +54,7 @@ namespace server.Controllers
 
         //update project
         [HttpPut("{id:int}")]
-        [Permission(PermissionKeys.EditProject)]
+        [Permission(PermissionKeys.ManageProducts)]
         public async Task<ActionResult> UpdateProjectById(int id,CreateProjectDTO dto)
         {
             var user = await _current.RequireOrgUserAsync();
@@ -79,7 +79,7 @@ namespace server.Controllers
 
         //delete project
         [HttpDelete("{id:int}")]
-        [Permission(PermissionKeys.DeleteProject)]
+        [Permission(PermissionKeys.ManageProducts)]
         public async Task<ActionResult> DeleteProjectById(int id)
         {
             var user = await _current.RequireOrgUserAsync();
@@ -104,7 +104,7 @@ namespace server.Controllers
 
         //get project
         [HttpGet("{id:int}")]
-        [Permission(PermissionKeys.ViewProject)]
+        [Permission(PermissionKeys.ViewProducts)]
         public async Task<ActionResult> GetProjectById(int id)
         {
             var project = await GetAccessibleProjectAsync(id);
@@ -134,7 +134,7 @@ namespace server.Controllers
 
         //get all project
         [HttpGet("all")]
-        [Permission(PermissionKeys.ViewProject)]
+        [Permission(PermissionKeys.ViewProducts)]
         public async Task<ActionResult> GetProjects()
         {
             var user = await _current.RequireOrgUserAsync();
@@ -169,7 +169,7 @@ namespace server.Controllers
         //project members -------------------------------------------------
 
         [HttpGet("{id:int}/members")]
-        [Permission(PermissionKeys.ViewProject)]
+        [Permission(PermissionKeys.ViewProducts)]
         public async Task<ActionResult> ListMembers(int id)
         {
             var project = await GetAccessibleProjectAsync(id);
@@ -192,7 +192,7 @@ namespace server.Controllers
         }
 
         [HttpPost("{id:int}/members")]
-        [Permission(PermissionKeys.EditProject)]
+        [Permission(PermissionKeys.ManageProducts)]
         public async Task<ActionResult> AddMember(int id, AddProjectMemberDTO dto)
         {
             var user = await _current.RequireOrgUserAsync();
@@ -231,7 +231,7 @@ namespace server.Controllers
         }
 
         [HttpDelete("{id:int}/members/{userId:int}")]
-        [Permission(PermissionKeys.EditProject)]
+        [Permission(PermissionKeys.ManageProducts)]
         public async Task<ActionResult> RemoveMember(int id, int userId)
         {
             var user = await _current.RequireOrgUserAsync();
@@ -256,7 +256,7 @@ namespace server.Controllers
         //helpers ---------------------------------------------------------
 
         private async Task<bool> IsPrivilegedAsync() =>
-            _current.Can(PermissionKeys.ManageOrganization) || _current.Can(PermissionKeys.EditProject);
+            _current.Can(PermissionKeys.ManageOrganization) || _current.Can(PermissionKeys.ManageProducts);
 
         private async Task<Project?> GetAccessibleProjectAsync(int projectId)
         {

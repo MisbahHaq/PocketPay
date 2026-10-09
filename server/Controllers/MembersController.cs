@@ -56,7 +56,7 @@ namespace server.Controllers
         }
 
         //minimal directory used to assign people to projects
-        [Permission(PermissionKeys.EditProject)]
+        [Permission(PermissionKeys.ManageUsers)]
         [HttpGet("assignable")]
         public async Task<ActionResult> ListAssignable()
         {

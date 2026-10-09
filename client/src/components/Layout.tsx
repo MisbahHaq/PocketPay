@@ -23,7 +23,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
           <nav className="nav-links">
             {link("/dashboard", "Dashboard")}
-            {link("/projects", "Projects")}
+            {inOrg && has("view_products") && link("/products", "Products")}
+            {inOrg && has("view_stock") && link("/stock", "Stock")}
+            {inOrg && has("view_stock") && link("/stock/movements", "Movements")}
+            {inOrg && has("view_po") && link("/purchase-orders", "Purchases")}
+            {inOrg && has("view_so") && link("/sales-orders", "Sales")}
+            {inOrg && (has("view_categories") || has("view_units") || has("view_suppliers") || has("view_customers") || has("view_warehouses")) && link("/masters", "Masters")}
             {inOrg && (has("manage_users") || has("invite_users")) && link("/members", "Members")}
             {inOrg && has("manage_roles") && link("/roles", "Roles")}
             {inOrg && has("manage_organization") && link("/audit", "Audit")}
