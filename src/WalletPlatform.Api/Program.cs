@@ -1,8 +1,19 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using Serilog;
+using WalletPlatform.Api.Authorization;
 using WalletPlatform.Api.Middleware;
+using WalletPlatform.Api.OpenApi;
+using WalletPlatform.Api.Validation;
+using WalletPlatform.Application;
+using WalletPlatform.Application.Common.Security;
+using WalletPlatform.Domain.Enums;
 using WalletPlatform.Infrastructure;
 
 Log.Logger = new LoggerConfiguration()
@@ -19,10 +30,46 @@ try
         .Enrich.FromLogContext()
         .WriteTo.Console());
 
-    builder.Services.AddControllers();
+    builder.Services.AddApplication();
+    builder.Services.AddControllers(options => options.Filters.AddService<ValidationFilter>());
+    builder.Services.AddScoped<ValidationFilter>();
     builder.Services.AddProblemDetails();
-    builder.Services.AddOpenApi();
+    builder.Services.AddOpenApi(options =>
+        options.AddDocumentTransformer<BearerSecuritySchemeTransformer>());
     builder.Services.AddInfrastructure(builder.Configuration);
+
+    builder.Services
+        .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer();
+    builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+        .Configure<IOptions<JwtOptions>>((options, jwtOptionsAccessor) =>
+        {
+            var jwtOptions = jwtOptionsAccessor.Value;
+
+            options.MapInboundClaims = false;
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidIssuer = jwtOptions.Issuer,
+                ValidateAudience = true,
+                ValidAudience = jwtOptions.Audience,
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(
+                    Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.Zero,
+                NameClaimType = JwtRegisteredClaimNames.Sub,
+                RoleClaimType = "role",
+            };
+        });
+
+    builder.Services.AddAuthorizationBuilder()
+        .AddPolicy(
+            AuthorizationPolicies.CustomerOnly,
+            policy => policy.RequireRole(nameof(Role.Customer)))
+        .AddPolicy(
+            AuthorizationPolicies.AdminOnly,
+            policy => policy.RequireRole(nameof(Role.Admin)));
 
     var app = builder.Build();
 
@@ -65,6 +112,9 @@ try
 
     app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
     app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") });
+
+    app.UseAuthentication();
+    app.UseAuthorization();
 
     app.MapControllers();
 

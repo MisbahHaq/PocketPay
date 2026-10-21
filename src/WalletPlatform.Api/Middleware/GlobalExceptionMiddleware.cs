@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using WalletPlatform.Application.Common.Exceptions;
 
 namespace WalletPlatform.Api.Middleware;
 
@@ -18,10 +19,30 @@ public sealed class GlobalExceptionMiddleware(RequestDelegate next, ILogger<Glob
         {
             await next(context);
         }
-        catch (Exception ex)
+        catch (ConflictException exception)
+        {
+            logger.LogInformation("Request conflict: {Message}", exception.Message);
+            await WriteProblemAsync(
+                context,
+                StatusCodes.Status409Conflict,
+                "Conflict.",
+                exception.Message,
+                "https://tools.ietf.org/html/rfc9110#section-15.5.10");
+        }
+        catch (UnauthorizedException exception)
+        {
+            logger.LogInformation("Unauthorized request: {Message}", exception.Message);
+            await WriteProblemAsync(
+                context,
+                StatusCodes.Status401Unauthorized,
+                "Unauthorized.",
+                exception.Message,
+                "https://tools.ietf.org/html/rfc9110#section-15.5.2");
+        }
+        catch (Exception exception)
         {
             logger.LogError(
-                ex,
+                exception,
                 "Unhandled exception while processing {Method} {Path}",
                 context.Request.Method,
                 context.Request.Path);
@@ -31,19 +52,43 @@ public sealed class GlobalExceptionMiddleware(RequestDelegate next, ILogger<Glob
                 throw;
             }
 
-            var problem = new ProblemDetails
-            {
-                Status = StatusCodes.Status500InternalServerError,
-                Title = "An unexpected error occurred.",
-                Type = "https://tools.ietf.org/html/rfc9110#section-15.6.1",
-                Instance = context.Request.Path,
-            };
-            problem.Extensions["traceId"] = Activity.Current?.Id ?? context.TraceIdentifier;
-
-            context.Response.Clear();
-            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-            context.Response.ContentType = "application/problem+json";
-            await context.Response.WriteAsync(JsonSerializer.Serialize(problem, SerializerOptions));
+            await WriteProblemAsync(
+                context,
+                StatusCodes.Status500InternalServerError,
+                "An unexpected error occurred.",
+                detail: null,
+                "https://tools.ietf.org/html/rfc9110#section-15.6.1");
         }
+    }
+
+    private async Task WriteProblemAsync(
+        HttpContext context,
+        int statusCode,
+        string title,
+        string? detail,
+        string type)
+    {
+        if (context.Response.HasStarted)
+        {
+            logger.LogWarning(
+                "Response already started; unable to write a {StatusCode} problem response.",
+                statusCode);
+            return;
+        }
+
+        var problem = new ProblemDetails
+        {
+            Status = statusCode,
+            Title = title,
+            Detail = detail,
+            Type = type,
+            Instance = context.Request.Path,
+        };
+        problem.Extensions["traceId"] = Activity.Current?.Id ?? context.TraceIdentifier;
+
+        context.Response.Clear();
+        context.Response.StatusCode = statusCode;
+        context.Response.ContentType = "application/problem+json";
+        await context.Response.WriteAsync(JsonSerializer.Serialize(problem, SerializerOptions));
     }
 }
