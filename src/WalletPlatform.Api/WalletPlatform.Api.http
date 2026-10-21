@@ -1,6 +1,14 @@
 @WalletPlatform.Api_HostAddress = http://localhost:5178
 
-GET {{WalletPlatform.Api_HostAddress}}/weatherforecast/
+GET {{WalletPlatform.Api_HostAddress}}/api/ping
 Accept: application/json
 
 ###
+
+GET {{WalletPlatform.Api_HostAddress}}/health/live
+Accept: application/json
+
+###
+
+GET {{WalletPlatform.Api_HostAddress}}/health/ready
+Accept: application/json
