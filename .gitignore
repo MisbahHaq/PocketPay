@@ -1,45 +1,38 @@
-# .NET
+# .NET build artifacts
 bin/
 obj/
+[Bb]uild/
+artifacts/
 *.user
 *.suo
 *.userosscache
 *.sln.docstates
-artifacts/
-publish/
 
-# Visual Studio / VS Code
+# IDE
 .vs/
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-
-# Build results
-[Dd]ebug/
-[Rr]elease/
-x64/
-x86/
-
-# NuGet
-*.nupkg
-*.snupkg
-**/[Pp]ackages/*
-!**/[Pp]ackages/build/
-project.lock.json
-project.fragment.lock.json
-*.nuget.props
-*.nuget.targets
-
-# Rider
+.vscode/
 .idea/
+*.swp
+
+# Test results
+TestResults/
+*.trx
+coverage*.json
+coverage*.xml
+coverage*.info
+
+# Environment / secrets
+.env
+appsettings.*.Local.json
+secrets.json
+
+# Docker
+*.pid
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Logs and env
-*.log
-.env
-.env.*
+# Node (not used yet, future frontend)
+node_modules/
+dist/
