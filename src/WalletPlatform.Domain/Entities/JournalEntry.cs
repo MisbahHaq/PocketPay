@@ -86,6 +86,63 @@ public sealed class JournalEntry
     }
 
     /// <summary>
+    /// Builds the mirror-image entry that reverses <paramref name="original"/>: every
+    /// posting keeps its amount but swaps direction (a debit becomes a credit and vice
+    /// versa). Because the original balanced, the reversal balances too, and together they
+    /// net to zero. The original is never edited — this is how the append-only ledger
+    /// corrects a mistake.
+    /// </summary>
+    /// <param name="original">The entry being reversed.</param>
+    /// <param name="accountsById">
+    /// The accounts referenced by the original's postings, keyed by id. The reversal needs
+    /// the full account objects (not just ids) so the domain invariants can be re-checked.
+    /// </param>
+    public static JournalEntry CreateReversal(
+        JournalEntry original,
+        IReadOnlyDictionary<Guid, LedgerAccount> accountsById,
+        string createdBy,
+        DateTimeOffset createdAtUtc,
+        string? description = null)
+    {
+        ArgumentNullException.ThrowIfNull(original);
+        ArgumentNullException.ThrowIfNull(accountsById);
+
+        if (original.IsReversal)
+        {
+            throw new LedgerException("A reversal entry cannot itself be reversed.");
+        }
+
+        var reversal = Create(
+            type: $"{original.Type}:Reversal",
+            createdBy,
+            createdAtUtc,
+            reference: original.Reference,
+            description: description ?? $"Reversal of journal entry {original.Id}.",
+            reversesJournalEntryId: original.Id);
+
+        foreach (var posting in original.Postings)
+        {
+            if (!accountsById.TryGetValue(posting.LedgerAccountId, out var account))
+            {
+                throw new LedgerException(
+                    $"Cannot reverse: ledger account {posting.LedgerAccountId} was not provided.");
+            }
+
+            var amount = new Money(posting.AmountMinorUnits, posting.Currency);
+            if (posting.Direction == Direction.Debit)
+            {
+                reversal.Credit(account, amount);
+            }
+            else
+            {
+                reversal.Debit(account, amount);
+            }
+        }
+
+        return reversal.Build();
+    }
+
+    /// <summary>
     /// Validates invariants 1 and 2 and returns the entry, ready to be persisted.
     /// Callers must invoke this before persisting; <see cref="LedgerService"/> does so.
     /// </summary>

@@ -171,4 +171,101 @@ public sealed class JournalEntryTests
         walletPosting.SignedAmountForCreditNormal().Should().Be(100_000);
         fundingPosting.SignedAmountForDebitNormal().Should().Be(100_000);
     }
+
+    [Fact]
+    public void Reversal_swaps_every_posting_direction_and_links_to_the_original()
+    {
+        var wallet = Wallet();
+        var funding = Funding();
+        var original = NewEntry()
+            .Debit(funding, new Money(100_000, Currency.PKR))
+            .Credit(wallet, new Money(100_000, Currency.PKR))
+            .Build();
+
+        var accounts = new Dictionary<Guid, LedgerAccount>
+        {
+            [wallet.Id] = wallet,
+            [funding.Id] = funding,
+        };
+
+        var reversal = JournalEntry.CreateReversal(original, accounts, "admin", Now.AddMinutes(1));
+
+        reversal.ReversesJournalEntryId.Should().Be(original.Id);
+        reversal.IsReversal.Should().BeTrue();
+        reversal.Postings.Should().HaveCount(2);
+
+        var walletReversal = reversal.Postings.Single(p => p.LedgerAccountId == wallet.Id);
+        var fundingReversal = reversal.Postings.Single(p => p.LedgerAccountId == funding.Id);
+
+        walletReversal.Direction.Should().Be(Direction.Debit);
+        fundingReversal.Direction.Should().Be(Direction.Credit);
+        walletReversal.AmountMinorUnits.Should().Be(100_000);
+        fundingReversal.AmountMinorUnits.Should().Be(100_000);
+    }
+
+    [Fact]
+    public void Reversal_nets_the_account_balance_to_zero()
+    {
+        var wallet = Wallet();
+        var funding = Funding();
+        var original = NewEntry()
+            .Debit(funding, new Money(100_000, Currency.PKR))
+            .Credit(wallet, new Money(100_000, Currency.PKR))
+            .Build();
+
+        var accounts = new Dictionary<Guid, LedgerAccount>
+        {
+            [wallet.Id] = wallet,
+            [funding.Id] = funding,
+        };
+
+        var reversal = JournalEntry.CreateReversal(original, accounts, "admin", Now.AddMinutes(1));
+
+        var walletSigned = original.Postings
+            .Concat(reversal.Postings)
+            .Where(p => p.LedgerAccountId == wallet.Id)
+            .Sum(p => p.SignedAmountForCreditNormal());
+
+        walletSigned.Should().Be(0);
+    }
+
+    [Fact]
+    public void Reversing_a_reversal_is_rejected()
+    {
+        var wallet = Wallet();
+        var funding = Funding();
+        var original = NewEntry()
+            .Debit(funding, new Money(100_000, Currency.PKR))
+            .Credit(wallet, new Money(100_000, Currency.PKR))
+            .Build();
+
+        var accounts = new Dictionary<Guid, LedgerAccount>
+        {
+            [wallet.Id] = wallet,
+            [funding.Id] = funding,
+        };
+
+        var reversal = JournalEntry.CreateReversal(original, accounts, "admin", Now.AddMinutes(1));
+
+        var act = () => JournalEntry.CreateReversal(reversal, accounts, "admin", Now.AddMinutes(2));
+
+        act.Should().Throw<LedgerException>().WithMessage("*cannot itself be reversed*");
+    }
+
+    [Fact]
+    public void Reversal_requires_all_accounts()
+    {
+        var wallet = Wallet();
+        var funding = Funding();
+        var original = NewEntry()
+            .Debit(funding, new Money(100_000, Currency.PKR))
+            .Credit(wallet, new Money(100_000, Currency.PKR))
+            .Build();
+
+        var incomplete = new Dictionary<Guid, LedgerAccount> { [wallet.Id] = wallet };
+
+        var act = () => JournalEntry.CreateReversal(original, incomplete, "admin", Now.AddMinutes(1));
+
+        act.Should().Throw<LedgerException>().WithMessage("*was not provided*");
+    }
 }

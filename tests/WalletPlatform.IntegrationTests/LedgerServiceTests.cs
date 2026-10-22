@@ -113,6 +113,69 @@ public sealed class LedgerServiceTests(ApiEnvironment environment)
         await act.Should().ThrowAsync<NotFoundException>();
     }
 
+    [Fact]
+    public async Task Reverse_posts_mirror_entry_and_zeroes_the_balance()
+    {
+        using var scope = environment.CreateScope();
+        var (db, ledger) = Resolve(scope);
+        var (funding, walletAccount) = await CreateAccountsAsync(db);
+
+        var original = Funding(funding, walletAccount, 100_000);
+        await ledger.PostAsync(original);
+        (await ledger.GetBalanceAsync(walletAccount.Id)).Should().Be(100_000);
+
+        var reversal = await ledger.ReverseAsync(original.Id, "admin", Now.AddMinutes(5));
+
+        reversal.ReversesJournalEntryId.Should().Be(original.Id);
+        reversal.IsReversal.Should().BeTrue();
+        (await ledger.GetBalanceAsync(walletAccount.Id)).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Reverse_twice_returns_conflict()
+    {
+        using var scope = environment.CreateScope();
+        var (db, ledger) = Resolve(scope);
+        var (funding, walletAccount) = await CreateAccountsAsync(db);
+
+        var original = Funding(funding, walletAccount, 100_000);
+        await ledger.PostAsync(original);
+        await ledger.ReverseAsync(original.Id, "admin", Now.AddMinutes(5));
+
+        var act = () => ledger.ReverseAsync(original.Id, "admin", Now.AddMinutes(6));
+
+        await act.Should().ThrowAsync<ConflictException>()
+            .WithMessage("*already been reversed*");
+    }
+
+    [Fact]
+    public async Task Reverse_unknown_entry_throws_not_found()
+    {
+        using var scope = environment.CreateScope();
+        var (_, ledger) = Resolve(scope);
+
+        var act = () => ledger.ReverseAsync(Guid.NewGuid(), "admin", Now);
+
+        await act.Should().ThrowAsync<NotFoundException>();
+    }
+
+    [Fact]
+    public async Task Reverse_of_a_reversal_returns_conflict()
+    {
+        using var scope = environment.CreateScope();
+        var (db, ledger) = Resolve(scope);
+        var (funding, walletAccount) = await CreateAccountsAsync(db);
+
+        var original = Funding(funding, walletAccount, 100_000);
+        await ledger.PostAsync(original);
+        var reversal = await ledger.ReverseAsync(original.Id, "admin", Now.AddMinutes(5));
+
+        var act = () => ledger.ReverseAsync(reversal.Id, "admin", Now.AddMinutes(6));
+
+        await act.Should().ThrowAsync<ConflictException>()
+            .WithMessage("*cannot itself be reversed*");
+    }
+
     private static (WalletDbContext Db, ILedgerService Ledger) Resolve(IServiceScope scope) =>
         (scope.ServiceProvider.GetRequiredService<WalletDbContext>(),
          scope.ServiceProvider.GetRequiredService<ILedgerService>());

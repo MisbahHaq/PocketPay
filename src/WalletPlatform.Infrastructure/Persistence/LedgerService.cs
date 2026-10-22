@@ -29,6 +29,55 @@ internal sealed class LedgerService(WalletDbContext dbContext, IUnitOfWork unitO
         }, cancellationToken);
     }
 
+    public async Task<JournalEntry> ReverseAsync(
+        Guid journalEntryId,
+        string createdBy,
+        DateTimeOffset reversedAtUtc,
+        string? description = null,
+        CancellationToken cancellationToken = default)
+    {
+        // The lookup, the double-reversal check and the insert all run in one transaction.
+        // The check gives a friendly 409; the unique index on ReversesJournalEntryId is the
+        // ultimate backstop if two reversals race.
+        return await unitOfWork.ExecuteInTransactionAsync(async token =>
+        {
+            var original = await dbContext.JournalEntries
+                .Include(entry => entry.Postings)
+                .SingleOrDefaultAsync(entry => entry.Id == journalEntryId, token)
+                ?? throw new NotFoundException("Journal entry not found.");
+
+            if (original.IsReversal)
+            {
+                throw new ConflictException("A reversal entry cannot itself be reversed.");
+            }
+
+            var alreadyReversed = await dbContext.JournalEntries
+                .AnyAsync(entry => entry.ReversesJournalEntryId == journalEntryId, token);
+
+            if (alreadyReversed)
+            {
+                throw new ConflictException("This journal entry has already been reversed.");
+            }
+
+            var accountIds = original.Postings
+                .Select(posting => posting.LedgerAccountId)
+                .Distinct()
+                .ToList();
+
+            var accountsById = await dbContext.LedgerAccounts
+                .Where(account => accountIds.Contains(account.Id))
+                .ToDictionaryAsync(account => account.Id, token);
+
+            var reversal = JournalEntry.CreateReversal(
+                original, accountsById, createdBy, reversedAtUtc, description);
+
+            dbContext.JournalEntries.Add(reversal);
+            await unitOfWork.SaveChangesAsync(token);
+
+            return reversal;
+        }, cancellationToken);
+    }
+
     public async Task<long?> GetBalanceAsync(
         Guid ledgerAccountId,
         CancellationToken cancellationToken = default)

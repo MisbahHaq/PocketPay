@@ -18,6 +18,21 @@ public interface ILedgerService
     Task PostAsync(JournalEntry journalEntry, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Reverses an existing journal entry by posting its mirror image (debits and credits
+    /// swapped) as a new entry that references the original. The original is never edited.
+    /// Throws <see cref="WalletPlatform.Application.Common.Exceptions.NotFoundException"/>
+    /// when the entry does not exist and
+    /// <see cref="WalletPlatform.Application.Common.Exceptions.ConflictException"/> when it
+    /// has already been reversed (an entry can be reversed at most once).
+    /// </summary>
+    Task<JournalEntry> ReverseAsync(
+        Guid journalEntryId,
+        string createdBy,
+        DateTimeOffset reversedAtUtc,
+        string? description = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Returns the current signed balance of a ledger account, or null when the account
     /// does not exist. Signed positive means a normal balance for the account type.
     /// </summary>

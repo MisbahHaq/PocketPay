@@ -52,6 +52,7 @@ internal sealed class UnitOfWork(WalletDbContext dbContext) : IUnitOfWork
             {
                 "IX_Users_Email" => "An account with this email already exists.",
                 "IX_Wallets_WalletNumber" => "A wallet with this number already exists.",
+                "IX_JournalEntries_ReversesJournalEntryId" => "This journal entry has already been reversed.",
                 _ => "The request conflicts with an existing record.",
             };
 
