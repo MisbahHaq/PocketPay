@@ -74,10 +74,15 @@ try
 
     var app = builder.Build();
 
-    if (app.Configuration.GetSection(AdminSeedOptions.SectionName).Exists())
+    if (app.Services.GetRequiredService<IOptions<SeedOptions>>().Value.RunOnStartup)
     {
         using var scope = app.Services.CreateScope();
-        await scope.ServiceProvider.GetRequiredService<AdminSeeder>().SeedAsync();
+        await scope.ServiceProvider.GetRequiredService<SystemAccountSeeder>().SeedAsync();
+
+        if (app.Configuration.GetSection(AdminSeedOptions.SectionName).Exists())
+        {
+            await scope.ServiceProvider.GetRequiredService<AdminSeeder>().SeedAsync();
+        }
     }
 
     app.UseMiddleware<GlobalExceptionMiddleware>();

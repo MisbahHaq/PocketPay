@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
 using WalletPlatform.Infrastructure.Data;
+using WalletPlatform.Infrastructure.Persistence;
 
 namespace WalletPlatform.IntegrationTests;
 
@@ -35,6 +36,7 @@ public sealed class ApiEnvironment : IAsyncLifetime
                         ["Jwt:SigningKey"] = TestSigningKey,
                         ["Jwt:AccessTokenMinutes"] = "15",
                         ["Jwt:RefreshTokenDays"] = "7",
+                        ["Seed:RunOnStartup"] = "false",
                     });
                 });
             });
@@ -42,6 +44,8 @@ public sealed class ApiEnvironment : IAsyncLifetime
         using var scope = Factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<WalletDbContext>();
         await dbContext.Database.MigrateAsync();
+
+        await scope.ServiceProvider.GetRequiredService<SystemAccountSeeder>().SeedAsync();
     }
 
     public async Task DisposeAsync()

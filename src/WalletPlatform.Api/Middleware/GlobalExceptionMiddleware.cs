@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using WalletPlatform.Application.Common.Exceptions;
+using WalletPlatform.Domain.Exceptions;
 
 namespace WalletPlatform.Api.Middleware;
 
@@ -38,6 +39,28 @@ public sealed class GlobalExceptionMiddleware(RequestDelegate next, ILogger<Glob
                 "Unauthorized.",
                 exception.Message,
                 "https://tools.ietf.org/html/rfc9110#section-15.5.2");
+        }
+        catch (NotFoundException exception)
+        {
+            logger.LogInformation("Resource not found: {Message}", exception.Message);
+            await WriteProblemAsync(
+                context,
+                StatusCodes.Status404NotFound,
+                "Not found.",
+                exception.Message,
+                "https://tools.ietf.org/html/rfc9110#section-15.5.5");
+        }
+        catch (LedgerException exception)
+        {
+            // A ledger rule was violated (e.g. an unbalanced entry). This is a client
+            // problem, not a server fault, so it must not surface as a 500.
+            logger.LogInformation("Ledger rule violated: {Message}", exception.Message);
+            await WriteProblemAsync(
+                context,
+                StatusCodes.Status400BadRequest,
+                "Ledger rule violated.",
+                exception.Message,
+                "https://tools.ietf.org/html/rfc9110#section-15.5.1");
         }
         catch (Exception exception)
         {

@@ -30,7 +30,10 @@ public static class DependencyInjection
 
         services.AddOptions<AdminSeedOptions>()
             .BindConfiguration(AdminSeedOptions.SectionName);
+        services.AddOptions<SeedOptions>()
+            .BindConfiguration(SeedOptions.SectionName);
         services.AddScoped<AdminSeeder>();
+        services.AddScoped<SystemAccountSeeder>();
 
         services.AddSingleton<IClock, SystemClock>();
         services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
@@ -41,6 +44,7 @@ public static class DependencyInjection
         services.AddScoped<IWalletRepository, WalletRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<ILedgerAccountRepository, LedgerAccountRepository>();
+        services.AddScoped<ILedgerService, LedgerService>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         return services;

@@ -19,13 +19,14 @@ public sealed class RegisterUserHandlerTests
 
     private readonly FakeUserRepository _users = new();
     private readonly FakeWalletRepository _wallets = new();
+    private readonly FakeLedgerAccountRepository _ledgerAccounts = new();
     private readonly FakeWalletNumberGenerator _walletNumbers = new("123456789012");
     private readonly FakePasswordHasher _passwordHasher = new();
     private readonly FakeUnitOfWork _unitOfWork = new();
     private readonly FakeClock _clock = new(Now);
 
     private RegisterUserHandler CreateHandler() =>
-        new(_users, _wallets, _walletNumbers, _passwordHasher, _unitOfWork, _clock);
+        new(_users, _wallets, _ledgerAccounts, _walletNumbers, _passwordHasher, _unitOfWork, _clock);
 
     [Fact]
     public async Task Handle_creates_user_and_wallet_inside_a_transaction()
@@ -40,9 +41,24 @@ public sealed class RegisterUserHandlerTests
         _users.Items.Should().ContainSingle();
         _wallets.Items.Should().ContainSingle();
         _unitOfWork.TransactionCount.Should().Be(1);
-        _unitOfWork.SaveCount.Should().Be(2);
+        _unitOfWork.SaveCount.Should().Be(3);
         _users.Items[0].PasswordHash.Should().Be("hashed::Str0ng!Pass1");
         _wallets.Items[0].UserId.Should().Be(_users.Items[0].Id);
+    }
+
+    [Fact]
+    public async Task Handle_creates_a_liability_ledger_account_for_the_wallet()
+    {
+        await CreateHandler().HandleAsync(
+            new RegisterUserRequest("user@example.com", "Str0ng!Pass1"),
+            CancellationToken.None);
+
+        var wallet = _wallets.Items.Should().ContainSingle().Subject;
+        var account = _ledgerAccounts.Items.Should().ContainSingle().Subject;
+        account.WalletId.Should().Be(wallet.Id);
+        account.SystemCode.Should().BeNull();
+        account.Type.Should().Be(AccountType.Liability);
+        account.Currency.Should().Be(wallet.Currency);
     }
 
     [Fact]

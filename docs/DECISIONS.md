@@ -98,3 +98,17 @@ Represent money as a `Money(long MinorUnits, Currency Currency)` value object. A
 - No floating-point rounding drift; amounts are exact integers of the smallest unit (e.g. paisa).
 - Currency is carried with the amount, so cross-currency arithmetic fails loudly instead of silently.
 - Cost: presentation layers convert to and from major units, and `long` imposes a practical (but ample) upper bound.
+
+## ADR-007: Every wallet gets a ledger account in the registration transaction
+
+**Context**
+Customer wallets are liability accounts in the double-entry ledger (ADR-008). If a wallet could exist without its ledger account, the ledger and the wallet table could disagree and money could be posted nowhere. Wallets created before the ledger existed also need a backfill.
+
+**Decision**
+`RegisterUserHandler` creates the user, wallet and the wallet's `LedgerAccount` inside one `IUnitOfWork.ExecuteInTransactionAsync` block; any failure rolls all three back. A data migration (`BackfillWalletLedgerAccounts`) gives every pre-existing wallet a liability account, guarded by `NOT EXISTS` so it is safe to re-run. System accounts are seeded idempotently at startup by `SystemAccountSeeder` (find-or-create per code and currency), backed by the unique filtered index on `(SystemCode, Currency)`.
+
+**Consequences**
+- No wallet can be persisted without a matching liability ledger account.
+- Backfill and seeding are idempotent, so they are safe against re-deploys and multiple instances.
+- Startup seeding is gated by `Seed:RunOnStartup` so tests that manage migrations themselves stay in control.
+- Cost: registration now performs three saves in one transaction instead of two; the extra round trip buys an invariant.
