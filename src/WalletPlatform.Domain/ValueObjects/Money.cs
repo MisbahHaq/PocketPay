@@ -8,6 +8,13 @@ namespace WalletPlatform.Domain.ValueObjects;
 /// </summary>
 public sealed record Money(long MinorUnits, Currency Currency)
 {
+    /// <summary>
+    /// The largest single amount we accept, in minor units (1e15, i.e. 10 trillion major
+    /// units). This keeps a single amount far below <see cref="long.MaxValue"/> so that
+    /// summing many postings cannot silently overflow.
+    /// </summary>
+    public const long MaxMinorUnits = 1_000_000_000_000_000L;
+
     public static Money Zero(Currency currency) => new(0, currency);
 
     public static Money operator +(Money left, Money right) =>

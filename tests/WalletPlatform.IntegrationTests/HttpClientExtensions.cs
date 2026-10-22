@@ -27,6 +27,20 @@ internal static class HttpClientExtensions
         return await client.SendAsync(request);
     }
 
+    public static async Task<HttpResponseMessage> PostAuthorizedJsonAsync<T>(
+        this HttpClient client,
+        string path,
+        T body,
+        string accessToken)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, path)
+        {
+            Content = JsonContent.Create(body, options: Options),
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        return await client.SendAsync(request);
+    }
+
     public static async Task<T> ReadAsAsync<T>(this HttpResponseMessage response)
     {
         var json = await response.Content.ReadAsStringAsync();

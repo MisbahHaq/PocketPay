@@ -47,6 +47,24 @@ public interface ILedgerService
         int page,
         int pageSize,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns, per currency, the total debits and total credits across the whole ledger.
+    /// In a healthy double-entry ledger these are equal for every currency — this is the
+    /// single most important "is the books balanced?" check.
+    /// </summary>
+    Task<IReadOnlyList<TrialBalanceLine>> GetTrialBalanceAsync(CancellationToken cancellationToken = default);
+}
+
+/// <summary>Totals of all postings for one currency in the trial balance.</summary>
+public sealed record TrialBalanceLine(
+    Currency Currency,
+    long TotalDebits,
+    long TotalCredits)
+{
+    public long Difference => TotalDebits - TotalCredits;
+
+    public bool IsBalanced => Difference == 0;
 }
 
 /// <summary>

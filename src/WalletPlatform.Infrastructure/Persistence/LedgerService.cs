@@ -184,6 +184,28 @@ internal sealed class LedgerService(WalletDbContext dbContext, IUnitOfWork unitO
             mapped);
     }
 
+    public async Task<IReadOnlyList<TrialBalanceLine>> GetTrialBalanceAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var totals = await dbContext.LedgerEntries
+            .GroupBy(entry => entry.Currency)
+            .Select(group => new
+            {
+                Currency = group.Key,
+                TotalDebits = group
+                    .Where(entry => entry.Direction == Direction.Debit)
+                    .Sum(entry => (long?)entry.AmountMinorUnits) ?? 0,
+                TotalCredits = group
+                    .Where(entry => entry.Direction == Direction.Credit)
+                    .Sum(entry => (long?)entry.AmountMinorUnits) ?? 0,
+            })
+            .ToListAsync(cancellationToken);
+
+        return totals
+            .Select(total => new TrialBalanceLine(total.Currency, total.TotalDebits, total.TotalCredits))
+            .ToList();
+    }
+
     private Task<long> SumSignedAsync(
         Guid ledgerAccountId,
         AccountType accountType,
