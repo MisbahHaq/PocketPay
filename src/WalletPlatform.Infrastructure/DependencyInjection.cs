@@ -28,6 +28,10 @@ public static class DependencyInjection
             .ValidateOnStart();
         services.AddSingleton<IValidateOptions<JwtOptions>, JwtOptionsValidator>();
 
+        services.AddOptions<AdminSeedOptions>()
+            .BindConfiguration(AdminSeedOptions.SectionName);
+        services.AddScoped<AdminSeeder>();
+
         services.AddSingleton<IClock, SystemClock>();
         services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
         services.AddSingleton<IWalletNumberGenerator, SecureWalletNumberGenerator>();
@@ -36,6 +40,7 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IWalletRepository, WalletRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<ILedgerAccountRepository, LedgerAccountRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         return services;

@@ -8,6 +8,9 @@ public sealed class WalletDbContext(DbContextOptions<WalletDbContext> options) :
     public DbSet<User> Users => Set<User>();
     public DbSet<Wallet> Wallets => Set<Wallet>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<LedgerAccount> LedgerAccounts => Set<LedgerAccount>();
+    public DbSet<JournalEntry> JournalEntries => Set<JournalEntry>();
+    public DbSet<LedgerEntry> LedgerEntries => Set<LedgerEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

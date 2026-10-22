@@ -15,6 +15,7 @@ using WalletPlatform.Application;
 using WalletPlatform.Application.Common.Security;
 using WalletPlatform.Domain.Enums;
 using WalletPlatform.Infrastructure;
+using WalletPlatform.Infrastructure.Persistence;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -72,6 +73,12 @@ try
             policy => policy.RequireRole(nameof(Role.Admin)));
 
     var app = builder.Build();
+
+    if (app.Configuration.GetSection(AdminSeedOptions.SectionName).Exists())
+    {
+        using var scope = app.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<AdminSeeder>().SeedAsync();
+    }
 
     app.UseMiddleware<GlobalExceptionMiddleware>();
     app.UseSerilogRequestLogging();

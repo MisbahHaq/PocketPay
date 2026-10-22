@@ -52,3 +52,49 @@ Four projects with dependencies pointing inward:
 - Infrastructure implements interfaces defined in Application (Dependency Inversion), so adapters are swappable.
 - `Api` is the only composition root, keeping DI registration in one visible place.
 - Cost: more projects and mapping code than a single-file API. Accepted because the enforced boundaries pay off as features accumulate.
+
+---
+
+## ADR-004: JWT access tokens with rotating refresh tokens
+
+**Context**
+The API is consumed by first-party clients that need stateless request authentication but must also support long-lived sessions and the ability to revoke a compromised session.
+
+**Decision**
+Issue short-lived (15 min) JWT access tokens and long-lived (7-day) opaque refresh tokens. Refresh tokens are 256-bit random values; only their SHA-256 hash is persisted. Every refresh rotates the token, and a refresh token belongs to a family shared by one login session.
+
+**Consequences**
+- Request authentication stays stateless and cheap (no DB hit for the access token).
+- Only hashes are stored, so a database leak does not expose usable refresh tokens.
+- Rotation plus family tracking gives reuse detection: presenting an already-rotated token revokes the whole family, containing token theft.
+- Cost: clients must handle rotation, and access tokens cannot be revoked before expiry. The short lifetime bounds that window.
+
+---
+
+## ADR-005: Standalone PasswordHasher instead of full Identity
+
+**Context**
+Registration and login need correct password hashing and lockout, but not Identity's user/role stores, its EF schema, or its cookie flows — the API is token-based and the schema is owned by our own entities.
+
+**Decision**
+Use ASP.NET Core Identity's `PasswordHasher<T>` on its own, behind an `IPasswordHasher` port in the Application layer. Implement lockout (5 attempts / 15 minutes) directly on the `User` entity.
+
+**Consequences**
+- Battle-tested PBKDF2 hashing without adopting Identity's schema or its opinionated lifetime.
+- The Application layer stays free of Identity types; the adapter lives in Infrastructure and can be swapped.
+- Cost: lockout and user management are our responsibility rather than Identity's built-in behavior.
+
+---
+
+## ADR-006: Money as integer minor units
+
+**Context**
+Financial arithmetic must be exact; binary floating point cannot represent decimal amounts such as 0.10 and borrowing across currencies must be impossible.
+
+**Decision**
+Represent money as a `Money(long MinorUnits, Currency Currency)` value object. All arithmetic uses `checked` operations and rejects mixing currencies at runtime with `InvalidOperationException`.
+
+**Consequences**
+- No floating-point rounding drift; amounts are exact integers of the smallest unit (e.g. paisa).
+- Currency is carried with the amount, so cross-currency arithmetic fails loudly instead of silently.
+- Cost: presentation layers convert to and from major units, and `long` imposes a practical (but ample) upper bound.
