@@ -194,6 +194,64 @@ namespace WalletPlatform.Infrastructure.Migrations
                     b.ToTable("RefreshTokens", (string)null);
                 });
 
+            modelBuilder.Entity("WalletPlatform.Domain.Entities.Transfer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DestinationWalletId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid?>("JournalEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(140)
+                        .HasColumnType("character varying(140)");
+
+                    b.Property<Guid>("SourceWalletId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JournalEntryId")
+                        .IsUnique()
+                        .HasFilter("\"JournalEntryId\" IS NOT NULL");
+
+                    b.HasIndex("DestinationWalletId", "CreatedAt");
+
+                    b.HasIndex("SourceWalletId", "CreatedAt");
+
+                    b.ToTable("Transfers", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Transfers_Amount_Positive", "\"AmountMinorUnits\" > 0");
+
+                            t.HasCheckConstraint("CK_Transfers_Completed_Requires_JournalEntry", "(\"Status\" IN ('Completed', 'Reversed') AND \"JournalEntryId\" IS NOT NULL) OR (\"Status\" IN ('Pending', 'Failed') AND \"JournalEntryId\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_Transfers_Distinct_Wallets", "\"SourceWalletId\" <> \"DestinationWalletId\"");
+
+                            t.HasCheckConstraint("CK_Transfers_Fee_NonNegative", "\"FeeMinorUnits\" >= 0");
+
+                            t.HasCheckConstraint("CK_Transfers_Status", "\"Status\" IN ('Pending', 'Completed', 'Failed', 'Reversed')");
+                        });
+                });
+
             modelBuilder.Entity("WalletPlatform.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -292,6 +350,75 @@ namespace WalletPlatform.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("WalletPlatform.Domain.Entities.Transfer", b =>
+                {
+                    b.HasOne("WalletPlatform.Domain.Entities.Wallet", null)
+                        .WithMany()
+                        .HasForeignKey("DestinationWalletId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("WalletPlatform.Domain.Entities.Wallet", null)
+                        .WithMany()
+                        .HasForeignKey("SourceWalletId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.OwnsOne("WalletPlatform.Domain.ValueObjects.Money", "Amount", b1 =>
+                        {
+                            b1.Property<Guid>("TransferId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<string>("Currency")
+                                .IsRequired()
+                                .ValueGeneratedOnUpdateSometimes()
+                                .HasMaxLength(3)
+                                .HasColumnType("character varying(3)")
+                                .HasColumnName("Currency");
+
+                            b1.Property<long>("MinorUnits")
+                                .HasColumnType("bigint")
+                                .HasColumnName("AmountMinorUnits");
+
+                            b1.HasKey("TransferId");
+
+                            b1.ToTable("Transfers");
+
+                            b1.WithOwner()
+                                .HasForeignKey("TransferId");
+                        });
+
+                    b.OwnsOne("WalletPlatform.Domain.ValueObjects.Money", "Fee", b1 =>
+                        {
+                            b1.Property<Guid>("TransferId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<string>("Currency")
+                                .IsRequired()
+                                .ValueGeneratedOnUpdateSometimes()
+                                .HasMaxLength(3)
+                                .HasColumnType("character varying(3)")
+                                .HasColumnName("Currency");
+
+                            b1.Property<long>("MinorUnits")
+                                .HasColumnType("bigint")
+                                .HasColumnName("FeeMinorUnits");
+
+                            b1.HasKey("TransferId");
+
+                            b1.ToTable("Transfers");
+
+                            b1.WithOwner()
+                                .HasForeignKey("TransferId");
+                        });
+
+                    b.Navigation("Amount")
+                        .IsRequired();
+
+                    b.Navigation("Fee")
                         .IsRequired();
                 });
 
