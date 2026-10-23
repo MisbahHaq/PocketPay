@@ -18,7 +18,9 @@ public sealed class WalletDbContext(DbContextOptions<WalletDbContext> options) :
     public DbSet<Biller> Billers => Set<Biller>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<SettlementFile> SettlementFiles => Set<SettlementFile>();
-    public DbSet<SettlementRow> SettlementRows => Set<SettlementRow>();
+    public DbSet<ReconciliationRun> ReconciliationRuns => Set<ReconciliationRun>();
+    public DbSet<ReconciliationItem> ReconciliationItems => Set<ReconciliationItem>();
+    public DbSet<PaymentReconciliation> PaymentReconciliations => Set<PaymentReconciliation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
