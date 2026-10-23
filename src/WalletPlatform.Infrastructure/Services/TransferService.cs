@@ -9,6 +9,7 @@ using WalletPlatform.Domain.Entities;
 using WalletPlatform.Domain.Enums;
 using WalletPlatform.Domain.Exceptions;
 using WalletPlatform.Domain.ValueObjects;
+using WalletPlatform.Infrastructure.Persistence;
 
 namespace WalletPlatform.Infrastructure.Services;
 
@@ -17,6 +18,7 @@ internal sealed class TransferService(
     ILedgerAccountRepository ledgerAccountRepository,
     ITransferRepository transferRepository,
     ILedgerService ledgerService,
+    IAccountLocker accountLocker,
     IUnitOfWork unitOfWork,
     IOptions<TransferOptions> options,
     IClock clock) : ITransferService
@@ -81,16 +83,31 @@ internal sealed class TransferService(
         // All policies passed — execute the transfer + journal entry in one transaction
         return await unitOfWork.ExecuteInTransactionAsync(async token =>
         {
-            // Re-read the balance inside the transaction to avoid a stale read between
-            // policy check and journal posting (TOCTOU).
+            // Acquire pessimistic locks on BOTH accounts in consistent order (by ID)
+            // This prevents:
+            // 1. TOCTOU: balance/daily-limit checks and posting happen while lock is held
+            // 2. Deadlocks: AccountLocker sorts IDs globally before locking
+            await accountLocker.LockAsync(sourceAccount.Id, destinationAccount.Id);
+
+            // Re-read the balance inside the transaction UNDER THE LOCK
             var currentBalance = await ledgerService.GetBalanceAsync(sourceAccount.Id, token)
                 ?? throw new NotFoundException("Source ledger account balance unavailable.");
 
             var recheck = new AmountLimitsPolicy(options.Value).Check(amount, fee, currentBalance);
             if (!recheck.IsSuccess)
             {
-                // This should be extremely rare, but if it happens, record as Failed
                 var failed = CreateFailedTransfer(sourceWalletId, destinationWallet.Id, amount, note, recheck);
+                await transferRepository.AddAsync(failed, token);
+                await unitOfWork.SaveChangesAsync(token);
+                return failed;
+            }
+
+            // Re-check daily limit under the lock
+            var dailySum = await transferRepository.GetCompletedOutgoingSumAsync(sourceWalletId, clock.UtcNow.AddHours(-24), token);
+            var dailyRecheck = new DailyLimitPolicy(options.Value, clock).Check(dailySum, amount, fee);
+            if (!dailyRecheck.IsSuccess)
+            {
+                var failed = CreateFailedTransfer(sourceWalletId, destinationWallet.Id, amount, note, dailyRecheck);
                 await transferRepository.AddAsync(failed, token);
                 await unitOfWork.SaveChangesAsync(token);
                 return failed;
@@ -118,7 +135,8 @@ internal sealed class TransferService(
             }
 
             journalEntry.Build();
-            await ledgerService.PostAsync(journalEntry, token);
+            // Use internal method to participate in the outer transaction
+            await ((LedgerService)ledgerService).PostAsyncInternal(journalEntry, token);
 
             // Create and persist the transfer marked Completed
             var transfer = Transfer.Create(

@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using Serilog;
 using WalletPlatform.Api.Authorization;
+using WalletPlatform.Api.Filters;
 using WalletPlatform.Api.Middleware;
 using WalletPlatform.Api.OpenApi;
 using WalletPlatform.Api.Validation;
@@ -32,8 +33,13 @@ try
         .WriteTo.Console());
 
     builder.Services.AddApplication();
-    builder.Services.AddControllers(options => options.Filters.AddService<ValidationFilter>());
+    builder.Services.AddControllers(options =>
+    {
+        options.Filters.AddService<ValidationFilter>();
+        options.Filters.AddService<IdempotencyFilter>();
+    });
     builder.Services.AddScoped<ValidationFilter>();
+    builder.Services.AddScoped<IdempotencyFilter>();
     builder.Services.AddProblemDetails();
     builder.Services.AddOpenApi(options =>
         options.AddDocumentTransformer<BearerSecuritySchemeTransformer>());

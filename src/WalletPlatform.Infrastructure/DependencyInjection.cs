@@ -37,6 +37,11 @@ public static class DependencyInjection
             .ValidateOnStart();
         services.AddSingleton<IValidateOptions<TransferOptions>, TransferOptionsValidator>();
 
+        services.AddOptions<IdempotencyOptions>()
+            .BindConfiguration(IdempotencyOptions.SectionName)
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<IdempotencyOptions>, IdempotencyOptionsValidator>();
+
         services.AddOptions<AdminSeedOptions>()
             .BindConfiguration(AdminSeedOptions.SectionName);
         services.AddOptions<SeedOptions>()
@@ -56,6 +61,8 @@ public static class DependencyInjection
         services.AddScoped<ITransferRepository, TransferRepository>();
         services.AddScoped<ILedgerService, LedgerService>();
         services.AddScoped<ITransferService, TransferService>();
+        services.AddScoped<IAccountLocker, AccountLocker>();
+        services.AddScoped<IIdempotencyService, IdempotencyService>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         return services;
