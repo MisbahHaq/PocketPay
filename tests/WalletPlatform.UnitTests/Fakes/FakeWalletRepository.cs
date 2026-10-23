@@ -13,5 +13,8 @@ internal sealed class FakeWalletRepository : IWalletRepository
     public Task<Wallet?> FindByIdAsync(Guid walletId, CancellationToken cancellationToken) =>
         Task.FromResult(Items.SingleOrDefault(wallet => wallet.Id == walletId));
 
+    public Task<Wallet?> FindByWalletNumberAsync(string walletNumber, CancellationToken cancellationToken) =>
+        Task.FromResult(Items.FirstOrDefault(wallet => wallet.WalletNumber == walletNumber));
+
     public void Add(Wallet wallet) => Items.Add(wallet);
 }

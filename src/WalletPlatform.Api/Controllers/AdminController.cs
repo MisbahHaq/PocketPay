@@ -2,10 +2,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WalletPlatform.Api.Authorization;
 using WalletPlatform.Application.Admin.FundWallet;
+using WalletPlatform.Application.Admin.GetTransfers;
 using WalletPlatform.Application.Admin.GetTrialBalance;
 using WalletPlatform.Application.Admin.GetUsersPage;
 using WalletPlatform.Application.Admin.ReverseJournalEntry;
-using WalletPlatform.Application.Common;
+using WalletPlatform.Application.Admin.ReverseTransfer;
+using WalletPlatform.Application.Transfers;
 
 namespace WalletPlatform.Api.Controllers;
 
@@ -16,7 +18,9 @@ public sealed class AdminController(
     GetUsersPageHandler getUsersPageHandler,
     FundWalletHandler fundWalletHandler,
     ReverseJournalEntryHandler reverseJournalEntryHandler,
-    GetTrialBalanceHandler getTrialBalanceHandler) : ControllerBase
+    GetTrialBalanceHandler getTrialBalanceHandler,
+    GetAdminTransfersHandler getAdminTransfersHandler,
+    ReverseTransferHandler reverseTransferHandler) : ControllerBase
 {
     [HttpGet("users")]
     [ProducesResponseType<PagedResult<UserSummary>>(StatusCodes.Status200OK)]
@@ -81,5 +85,38 @@ public sealed class AdminController(
         var response = await getTrialBalanceHandler.HandleAsync(cancellationToken);
         return Ok(response);
     }
-}
 
+    [HttpGet("transfers")]
+    [ProducesResponseType<TransfersPageResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<TransfersPageResponse>> GetTransfers(
+        [FromQuery] GetAdminTransfersQuery query,
+        CancellationToken cancellationToken)
+    {
+        var response = await getAdminTransfersHandler.HandleAsync(query, cancellationToken);
+        return Ok(response);
+    }
+
+    [HttpPost("transfers/{transferId:guid}/reverse")]
+    [ProducesResponseType<TransferDetail>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<TransferDetail>> ReverseTransfer(
+        Guid transferId,
+        ReverseTransferRequest request,
+        CancellationToken cancellationToken)
+    {
+        var response = await reverseTransferHandler.HandleAsync(
+            transferId,
+            request,
+            User.GetRequiredUserName(),
+            cancellationToken);
+
+        return StatusCode(StatusCodes.Status201Created, response);
+    }
+}

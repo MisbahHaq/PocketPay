@@ -13,5 +13,8 @@ internal sealed class WalletRepository(WalletDbContext dbContext) : IWalletRepos
     public Task<Wallet?> FindByIdAsync(Guid walletId, CancellationToken cancellationToken) =>
         dbContext.Wallets.SingleOrDefaultAsync(wallet => wallet.Id == walletId, cancellationToken);
 
+    public Task<Wallet?> FindByWalletNumberAsync(string walletNumber, CancellationToken cancellationToken) =>
+        dbContext.Wallets.SingleOrDefaultAsync(wallet => wallet.WalletNumber == walletNumber, cancellationToken);
+
     public void Add(Wallet wallet) => dbContext.Wallets.Add(wallet);
 }

@@ -4,10 +4,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using WalletPlatform.Application.Abstractions.Persistence;
 using WalletPlatform.Application.Abstractions.Security;
+using WalletPlatform.Application.Abstractions.Services;
+using WalletPlatform.Application.Common;
 using WalletPlatform.Application.Common.Security;
+using WalletPlatform.Infrastructure.Common;
 using WalletPlatform.Infrastructure.Data;
 using WalletPlatform.Infrastructure.Persistence;
 using WalletPlatform.Infrastructure.Security;
+using WalletPlatform.Infrastructure.Services;
 
 namespace WalletPlatform.Infrastructure;
 
@@ -28,6 +32,11 @@ public static class DependencyInjection
             .ValidateOnStart();
         services.AddSingleton<IValidateOptions<JwtOptions>, JwtOptionsValidator>();
 
+        services.AddOptions<TransferOptions>()
+            .BindConfiguration(TransferOptions.SectionName)
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<TransferOptions>, TransferOptionsValidator>();
+
         services.AddOptions<AdminSeedOptions>()
             .BindConfiguration(AdminSeedOptions.SectionName);
         services.AddOptions<SeedOptions>()
@@ -44,7 +53,9 @@ public static class DependencyInjection
         services.AddScoped<IWalletRepository, WalletRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<ILedgerAccountRepository, LedgerAccountRepository>();
+        services.AddScoped<ITransferRepository, TransferRepository>();
         services.AddScoped<ILedgerService, LedgerService>();
+        services.AddScoped<ITransferService, TransferService>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         return services;

@@ -8,6 +8,9 @@ namespace WalletPlatform.Infrastructure.Persistence;
 
 internal sealed class UnitOfWork(WalletDbContext dbContext) : IUnitOfWork
 {
+    // Internal for TransferService to add the transfer in the same transaction.
+    internal WalletDbContext DbContext => dbContext;
+
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
         SaveChangesCoreAsync(cancellationToken);
 
