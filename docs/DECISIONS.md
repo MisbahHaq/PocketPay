@@ -168,3 +168,98 @@ Simulated deposits debit `SYSTEM_FUNDING` (an `Asset`, debit-normal) and credit 
 - The trial balance is a one-call global integrity check.
 - `SYSTEM_FEES` and `SYSTEM_BILLER_SETTLEMENT` are seeded but intentionally unused until biller payments (Weeks 4–6).
 - Cost: the funding asset grows with simulated deposits; it is not backed by real money and is clearly a test/demo construct.
+
+---
+
+## ADR-012: Transfer state machine with explicit transitions
+
+**Context**
+A wallet-to-wallet transfer must not be editable after creation; its lifecycle should be auditable and impossible to corrupt by accident or bug. The transfer must capture whether it completed (money moved), failed (business rule rejected), or was reversed (admin correction).
+
+**Decision**
+Model `Transfer` as a domain aggregate with a private constructor and three transition methods: `Complete(Guid journalEntryId, DateTimeOffset completedAt)`, `Fail(string reason)`, `MarkReversed()`. Legal transitions:
+- `Pending → Completed` (journal entry posted)
+- `Pending → Failed` (business rule failed)
+- `Completed → Reversed` (admin reversal)
+All other moves throw `TransferException`. No public setters. Unit tests cover every legal and illegal transition.
+
+**Consequences**
+- A transfer can never be in an invalid state (e.g. `Completed` without a `JournalEntryId`, or `Reversed` while still `Pending`).
+- The state machine is self-contained in the domain; no external logic can corrupt it.
+- Cost: more code than a simple DTO, but the invariant is compile-time enforced where possible and runtime enforced otherwise.
+
+---
+
+## ADR-013: Fee posted to SYSTEM_FEES revenue account
+
+**Context**
+Transfers charge a flat fee (configurable, default 0). The fee must be accounted for in the ledger so the trial balance stays balanced and the platform's revenue is visible.
+
+**Decision**
+In the transfer journal entry: debit the source wallet for `amount + fee`, credit the destination wallet for `amount`, and credit `SYSTEM_FEES` (a `Revenue` account, credit-normal) for `fee`. If `fee == 0`, only two postings are created (source debit, destination credit).
+
+**Consequences**
+- Debits always equal credits per currency.
+- Fees are visible in the trial balance and never lost.
+- `SYSTEM_FEES` is a `Revenue` account, so its normal balance is credit — crediting it increases the platform's recorded revenue.
+- Cost: an extra posting when fee > 0; still simple and auditable.
+
+---
+
+## ADR-014: Failed transfers are persisted for audit
+
+**Context**
+When a transfer fails a business rule (e.g. insufficient funds), the journal entry is not posted. But we still want an audit trail of the attempt, including the failure reason.
+
+**Decision**
+If a business rule fails *after* basic validation and authorization pass, create a `Transfer` in status `Failed` with the error code in `FailureReason`, and persist it. The journal entry is never created, so the ledger is unaffected.
+
+**Consequences**
+- Every transfer attempt is recorded, even rejected ones — useful for fraud detection and support.
+- The `Transfers` table will grow with failed rows (table noise), but they are distinguishable by `Status = Failed` and can be filtered.
+- Trade-off: audit completeness vs. table size. Accepted because failed transfers are expected to be a small fraction.
+
+---
+
+## ADR-015: Wallet-number addressing with masked lookup
+
+**Context**
+Customers should not need to know the destination user's email or internal wallet ID. A 12-digit wallet number is the public address. The lookup must return only enough info to confirm the right recipient — never email, balance, or other PII.
+
+**Decision**
+`GET /api/wallets/lookup?walletNumber=...` returns only `{ id, maskedDisplayName, currency }`. The masked name is derived from the owner's email (e.g. `j***@example.com`). If no wallet matches, return 404.
+
+**Consequences**
+- No account enumeration via lookup (404 for both "not found" and "exists but hidden").
+- The destination wallet's balance and owner identity stay private.
+- Cost: an extra lookup endpoint, but it cleanly separates addressing from authorization.
+
+---
+
+## ADR-016: 404 over 403 for other users' resources
+
+**Context**
+When a customer requests a transfer or wallet they don't own, the API should not reveal whether the resource exists.
+
+**Decision**
+All customer endpoints (`/api/wallets/*`, `/api/wallets/transfers/{id}`) return 404 (not 403) when the requesting user does not own the resource. The handler checks ownership and throws `NotFoundException` on mismatch.
+
+**Consequences**
+- An attacker cannot probe for valid wallet/transfer IDs.
+- Consistent with Week 2 wallet balance endpoint behavior.
+- Cost: slightly more code than a generic 403, but the security benefit is significant.
+
+---
+
+## ADR-017: Known concurrency gap — TOCTOU on balance check
+
+**Context**
+The transfer service checks the source wallet's available balance *before* starting the transaction that posts the journal entry. Between the check and the commit, another concurrent transfer could also pass the check and post, resulting in an overdraft.
+
+**Decision**
+Document this as a known gap (ADR-017). A skipped integration test (`TransferConcurrencyTests`) demonstrates the race. Week 5 will fix it by acquiring a row lock (`SELECT ... FOR UPDATE`) on the source ledger account inside the transaction before re-checking the balance.
+
+**Consequences**
+- Current implementation is **not safe under high concurrency** for the same wallet.
+- The gap is explicit, tested (skipped), and slated for Week 5.
+- Cost: potential overdraft under load; acceptable for a demo but not for production.

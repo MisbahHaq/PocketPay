@@ -1,3 +1,4 @@
+using FluentValidation;
 using WalletPlatform.Application.Abstractions.Persistence;
 using WalletPlatform.Application.Abstractions.Security;
 using WalletPlatform.Application.Abstractions.Services;
@@ -12,7 +13,7 @@ namespace WalletPlatform.Application.Admin.ReverseTransfer;
 
 public sealed record ReverseTransferRequest(string? Description);
 
-public sealed class ReverseTransferRequestValidator : FluentValidation.AbstractValidator<ReverseTransferRequest>
+public sealed class ReverseTransferRequestValidator : AbstractValidator<ReverseTransferRequest>
 {
     public ReverseTransferRequestValidator()
     {
@@ -28,7 +29,6 @@ public sealed class ReverseTransferRequestValidator : FluentValidation.AbstractV
 public sealed class ReverseTransferHandler(
     ITransferRepository transfers,
     ILedgerService ledgerService,
-    ILedgerAccountRepository ledgerAccounts,
     IUnitOfWork unitOfWork,
     IClock clock)
 {

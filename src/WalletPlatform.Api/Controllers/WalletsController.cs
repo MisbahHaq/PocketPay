@@ -9,6 +9,7 @@ using WalletPlatform.Application.Transfers.CreateTransfer;
 using WalletPlatform.Application.Transfers.GetTransfer;
 using WalletPlatform.Application.Transfers.GetTransfers;
 using WalletPlatform.Application.Transfers.LookupWallet;
+using WalletPlatform.Domain.Enums;
 
 namespace WalletPlatform.Api.Controllers;
 

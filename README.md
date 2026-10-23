@@ -215,13 +215,87 @@ This posts a second entry that swaps direction — debit the wallet, credit fund
                     "totalCredits": 100000, "difference": 0 } ] }
 ```
 
+### Wallet-to-wallet transfers (Week 4)
+
+Customers can transfer money to another wallet by its 12-digit wallet number. The transfer and its journal entry are created in a single database transaction — either both succeed or neither exists. A flat fee (configurable via `Transfer:FlatFeeMinorUnits`, default 0) is charged to the source wallet and credited to `SYSTEM_FEES`.
+
+#### Endpoints
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/wallets/lookup?walletNumber=123456789012` | Bearer (Customer) | Resolve a destination wallet — returns only a masked display name and currency, never email or balance |
+| `POST` | `/api/wallets/transfers` | Bearer (Customer) | Create a transfer; returns 201 on success, 422 with error `code` on business-rule failure (INSUFFICIENT_FUNDS, DAILY_LIMIT_EXCEEDED, etc.) |
+| `GET` | `/api/wallets/transfers` | Bearer (Customer) | Paged history for a wallet (filter: `direction=outgoing|incoming`, `from`, `to`) |
+| `GET` | `/api/wallets/transfers/{id}` | Bearer (Customer) | Single transfer — visible to either party, 404 otherwise |
+| `GET` | `/api/admin/transfers` | Bearer (Admin) | All transfers, paged, filter by status |
+| `POST` | `/api/admin/transfers/{id}/reverse` | Bearer (Admin) | Reverse a completed transfer (posts a reversal journal entry, marks transfer Reversed) |
+
+#### Transfer lifecycle
+
+A transfer is an aggregate with an explicit state machine:
+
+```
+Pending  →  Completed   (journal entry posted, money moved)
+Pending  →  Failed      (business rule rejected the request)
+Completed → Reversed    (admin posted a reversal)
+```
+
+Illegal transitions (e.g. reversing a pending transfer) throw a domain exception and are never persisted. Failed transfers are still written to the `Transfers` table for audit — they never post a journal entry, so the ledger stays clean.
+
+#### Posting example: transfer PKR 1,000.00 with 25-fee
+
+Source wallet balance before: 100,000 (credit-normal liability).
+Fee = 25 minor units.
+
+```
+POST /api/wallets/transfers
+{ "sourceWalletId": "...", "destinationWalletNumber": "123456789012",
+  "amountMinorUnits": 1000, "currency": "PKR" }
+```
+
+Journal entry (type `Transfer`):
+
+| Account | Direction | Amount |
+| --- | --- | --- |
+| Source wallet (liability) | **Debit** | 1,025 (1,000 + 25 fee) |
+| Destination wallet (liability) | **Credit** | 1,000 |
+| `SYSTEM_FEES` (revenue) | **Credit** | 25 |
+
+Debits (1,025) == credits (1,000 + 25 = 1,025). The transfer is `Completed` and linked to this journal entry.
+
+Source balance becomes 98,975 (100,000 − 1,025). Destination balance increases by 1,000. `SYSTEM_FEES` increases by 25.
+
+#### Business rules (validated in order)
+
+1. Source wallet belongs to the caller.
+2. Destination wallet number exists and differs from source.
+3. Both wallets have the same currency.
+4. Amount > 0, within configured min/max; amount + fee ≤ available balance (derived from ledger).
+5. Sum of completed outgoing transfers in the last 24 h + this transfer ≤ daily outgoing limit.
+
+All failures return 422 with a `code` extension in ProblemDetails (e.g. `INSUFFICIENT_FUNDS`, `DAILY_LIMIT_EXCEEDED`, `AMOUNT_BELOW_MINIMUM`, `AMOUNT_ABOVE_MAXIMUM`, `SAME_WALLET`, `CURRENCY_MISMATCH`, `DESTINATION_NOT_FOUND`, `SOURCE_WALLET_NOT_FOUND`).
+
+#### Configuration
+
+```json
+{
+  "Transfer": {
+    "FlatFeeMinorUnits": 0,
+    "MinAmountMinorUnits": 1,
+    "MaxAmountMinorUnits": 1000000000,
+    "DailyOutgoingLimitMinorUnits": 5000000000
+  }
+}
+```
+
+Validated on startup via `IValidateOptions<TransferOptions>`.
+
 ### Known gaps (Weeks 4–6)
 
-The ledger deliberately leaves these for later weeks and they are **not** production-safe yet:
+The ledger and transfers deliberately leave these for later weeks and they are **not** production-safe yet:
 
-- **Customer-initiated transfers** between wallets (only admin funding exists).
 - **Idempotency keys** — a retried request can currently post a second entry; the HTTP layer has no request de-duplication.
-- **Concurrency control** — no row locking or optimistic concurrency on accounts, so simultaneous operations rely solely on database constraints and the trial balance staying zero-sum.
+- **Concurrency control** — no row locking or optimistic concurrency on accounts, so simultaneous operations rely solely on database constraints and the trial balance staying zero-sum. **Known race condition**: two concurrent transfers from the same wallet can both pass the balance check before either journal entry is posted, resulting in an overdraft. A skipped integration test (`TransferConcurrencyTests`) demonstrates this; Week 5 will fix it with `SELECT ... FOR UPDATE` or serializable isolation.
 - **Biller payments and settlement** (`SYSTEM_BILLER_SETTLEMENT` is seeded but unused).
 - **Performance** — balances are sum-on-read; statement snapshots are deferred until the ledger is large enough to need them.
 
