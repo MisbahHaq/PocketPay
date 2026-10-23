@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using WalletPlatform.Domain.Entities;
+using WalletPlatform.Infrastructure.Data.Entities;
 
 namespace WalletPlatform.Infrastructure.Data;
 
@@ -13,6 +14,9 @@ public sealed class WalletDbContext(DbContextOptions<WalletDbContext> options) :
     public DbSet<LedgerEntry> LedgerEntries => Set<LedgerEntry>();
     public DbSet<Transfer> Transfers => Set<Transfer>();
     public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
+    public DbSet<BillPayment> BillPayments => Set<BillPayment>();
+    public DbSet<Biller> Billers => Set<Biller>();
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
