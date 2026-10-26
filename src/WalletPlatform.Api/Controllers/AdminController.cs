@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using WalletPlatform.Api.Authorization;
 using WalletPlatform.Application.Admin.FundWallet;
 using WalletPlatform.Application.Admin.GetTransfers;
@@ -119,5 +120,33 @@ public sealed class AdminController(
             cancellationToken);
 
         return StatusCode(StatusCodes.Status201Created, response);
+    }
+
+    [HttpGet("audit-events")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetAuditEvents(
+        [FromServices] WalletPlatform.Infrastructure.Data.WalletDbContext dbContext,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        [FromQuery] string? action = null,
+        CancellationToken cancellationToken = default)
+    {
+        var safePage = page <= 0 ? 1 : page;
+        var safePageSize = pageSize <= 0 ? 50 : Math.Min(pageSize, 100);
+        var query = dbContext.AuditEvents.AsNoTracking().AsQueryable();
+        if (!string.IsNullOrWhiteSpace(action))
+        {
+            query = query.Where(a => a.Action == action);
+        }
+        var total = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderByDescending(a => a.OccurredAt)
+            .Skip((safePage - 1) * safePageSize)
+            .Take(safePageSize)
+            .ToListAsync(cancellationToken);
+
+        return Ok(new { items, totalCount = total, page = safePage, pageSize = safePageSize });
     }
 }

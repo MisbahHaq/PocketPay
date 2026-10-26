@@ -48,6 +48,15 @@ try
     builder.Services.AddInfrastructure(builder.Configuration);
     builder.Services.AddRateLimitingPolicies();
     builder.Services.AddForwardedHeadersConfiguration(builder.Configuration);
+    builder.Services.AddCors(options =>
+    {
+        options.AddDefaultPolicy(policy =>
+        {
+            policy.WithOrigins("http://localhost:5173", "http://127.0.0.1:5173")
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        });
+    });
     builder.Services.AddHostedService<WalletPlatform.Infrastructure.Reconciliation.ReconciliationScheduler>();
 
     builder.Services
@@ -139,6 +148,7 @@ try
     app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
     app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") });
 
+    app.UseCors();
     app.UseAuthentication();
     app.UseAuthorization();
     app.UseAppRateLimiting();

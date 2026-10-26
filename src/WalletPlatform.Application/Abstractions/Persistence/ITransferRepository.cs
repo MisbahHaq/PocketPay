@@ -40,4 +40,12 @@ public interface ITransferRepository
         Guid walletId,
         DateTimeOffset since,
         CancellationToken cancellationToken = default);
+
+    Task<(IReadOnlyList<Transfer> Items, int TotalCount)> GetAllAsync(
+        Domain.Enums.TransferStatus? status,
+        DateTimeOffset? from,
+        DateTimeOffset? to,
+        int skip,
+        int take,
+        CancellationToken cancellationToken = default);
 }

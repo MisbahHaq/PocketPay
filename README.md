@@ -78,7 +78,7 @@ dotnet test
 - Rate limiting options/policies/extensions wired
 - Security headers, correlation ID, forwarded headers
 - Reconciliation scaffolding (matching SQL, policies, service, controller, scheduler)
-- Admin dashboard scaffolding with pages and utilities
+- Functional admin dashboard UI (Vite + React + TypeScript) with Dashboard, Users, Transfers, Reconciliation, Audit, in-memory tokens, single-flight refresh, and full test suite
 
 ### Remaining
 - Enforce rate limiting per policy
@@ -86,5 +86,4 @@ dotnet test
 - Fix transfer concurrency (row locking/serializable)
 - Complete reconciliation matching/import/processing
 - Complete bill payments flows
-- Build functional dashboard UI
 - Stabilize integration tests

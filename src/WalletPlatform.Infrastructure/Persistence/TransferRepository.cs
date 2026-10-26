@@ -89,4 +89,39 @@ internal sealed class TransferRepository(WalletDbContext dbContext) : ITransferR
                 t.Status == TransferStatus.Completed &&
                 t.CreatedAt >= since)
             .SumAsync(t => t.Amount.MinorUnits + t.Fee.MinorUnits, cancellationToken);
+
+    public async Task<(IReadOnlyList<Transfer> Items, int TotalCount)> GetAllAsync(
+        TransferStatus? status,
+        DateTimeOffset? from,
+        DateTimeOffset? to,
+        int skip,
+        int take,
+        CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.Transfers.AsNoTracking().AsQueryable();
+
+        if (status.HasValue)
+        {
+            query = query.Where(t => t.Status == status.Value);
+        }
+
+        if (from.HasValue)
+        {
+            query = query.Where(t => t.CreatedAt >= from.Value);
+        }
+
+        if (to.HasValue)
+        {
+            query = query.Where(t => t.CreatedAt <= to.Value);
+        }
+
+        var total = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderByDescending(t => t.CreatedAt)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+        return (items, total);
+    }
 }
