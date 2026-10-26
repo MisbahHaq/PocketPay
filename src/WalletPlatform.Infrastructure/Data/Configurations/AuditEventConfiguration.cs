@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using WalletPlatform.Domain.Entities;
 
@@ -6,16 +6,22 @@ namespace WalletPlatform.Infrastructure.Data.Configurations;
 
 public sealed class AuditEventConfiguration : IEntityTypeConfiguration<AuditEvent>
 {
-    public void Configure(EntityTypeBuilder<AuditEvent> b)
+    public void Configure(EntityTypeBuilder<AuditEvent> builder)
     {
-        b.ToTable("audit_events");
-        b.HasKey(x => x.Id);
-        b.Property(x => x.Action).IsRequired().HasMaxLength(128);
-        b.Property(x => x.EntityType).IsRequired().HasMaxLength(64);
-        b.Property(x => x.EntityId).IsRequired().HasMaxLength(128);
-        b.Property(x => x.Outcome).IsRequired().HasMaxLength(16);
-        b.Property(x => x.Details).HasColumnType("jsonb").IsRequired();
-        b.Property(x => x.Hash).IsRequired().HasMaxLength(128);
-        b.HasIndex(x => new { x.ActorUserId, x.OccurredAt });
+        builder.ToTable("audit_events");
+        builder.HasKey(a => a.Id);
+        builder.Property(a => a.Action).IsRequired().HasMaxLength(100);
+        builder.Property(a => a.EntityType).IsRequired().HasMaxLength(100);
+        builder.Property(a => a.EntityId).IsRequired().HasMaxLength(100);
+        builder.Property(a => a.Outcome).IsRequired().HasMaxLength(50);
+        builder.Property(a => a.Details).IsRequired().HasColumnType("jsonb");
+        builder.Property(a => a.CorrelationId).HasMaxLength(100);
+        builder.Property(a => a.IpAddress).HasMaxLength(50);
+        builder.Property(a => a.UserAgent).HasMaxLength(500);
+        builder.Property(a => a.ActorRole).HasMaxLength(50);
+        builder.Property(a => a.PreviousHash).HasMaxLength(128);
+        builder.Property(a => a.Hash).IsRequired().HasMaxLength(128);
+        builder.HasIndex(a => new { a.EntityType, a.EntityId });
+        builder.HasIndex(a => a.OccurredAt);
     }
 }

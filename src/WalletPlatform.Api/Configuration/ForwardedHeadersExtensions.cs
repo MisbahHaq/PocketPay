@@ -1,18 +1,22 @@
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace WalletPlatform.Api.Configuration;
 
 public static class ForwardedHeadersExtensions
 {
-    public static IServiceCollection AddConfiguredForwardedHeaders(this IServiceCollection services, IConfiguration config)
+    public static IServiceCollection AddForwardedHeadersConfiguration(this IServiceCollection services, IConfiguration configuration)
     {
-        services.Configure<ForwardedHeadersOptions>(o =>
+        services.Configure<ForwardedHeadersOptions>(options =>
         {
-            o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-            // Known proxies configured via ForwardedHeaders:KnownProxies list
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            // Clear known networks/proxies for compatibility
         });
         return services;
+    }
+
+    public static IApplicationBuilder UseForwardedHeadersConfiguration(this IApplicationBuilder app)
+    {
+        app.UseForwardedHeaders();
+        return app;
     }
 }

@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Hosting;
+﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace WalletPlatform.Infrastructure.Reconciliation;
@@ -7,11 +7,10 @@ public sealed class ReconciliationScheduler(ILogger<ReconciliationScheduler> log
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        logger.LogInformation("Reconciliation scheduler started");
         while (!stoppingToken.IsCancellationRequested)
         {
-            logger.LogInformation("Reconciliation scheduler tick");
-            try { await Task.Delay(TimeSpan.FromHours(24), stoppingToken); }
-            catch (OperationCanceledException) { break; }
+            await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
         }
     }
 }

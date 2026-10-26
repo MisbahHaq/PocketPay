@@ -12,6 +12,8 @@ using WalletPlatform.Infrastructure.Data;
 using WalletPlatform.Infrastructure.Persistence;
 using WalletPlatform.Infrastructure.Security;
 using WalletPlatform.Infrastructure.Services;
+using WalletPlatform.Application.Audit;
+using WalletPlatform.Infrastructure.Audit;
 
 namespace WalletPlatform.Infrastructure;
 
@@ -64,6 +66,8 @@ public static class DependencyInjection
         services.AddScoped<IAccountLocker, AccountLocker>();
         services.AddScoped<IIdempotencyService, IdempotencyService>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IAuditService, AuditService>();
+        services.AddScoped<WalletPlatform.Application.Reconciliation.IReconciliationService, WalletPlatform.Infrastructure.Reconciliation.ReconciliationService>();
 
         return services;
     }

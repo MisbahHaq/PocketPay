@@ -1,4 +1,4 @@
-using System.IdentityModel.Tokens.Jwt;
+﻿using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -8,6 +8,8 @@ using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using Serilog;
 using WalletPlatform.Api.Authorization;
+using WalletPlatform.Api.Extensions;
+using WalletPlatform.Api.Configuration;
 using WalletPlatform.Api.Filters;
 using WalletPlatform.Api.Middleware;
 using WalletPlatform.Api.OpenApi;
@@ -44,6 +46,9 @@ try
     builder.Services.AddOpenApi(options =>
         options.AddDocumentTransformer<BearerSecuritySchemeTransformer>());
     builder.Services.AddInfrastructure(builder.Configuration);
+    builder.Services.AddRateLimitingPolicies();
+    builder.Services.AddForwardedHeadersConfiguration(builder.Configuration);
+    builder.Services.AddHostedService<WalletPlatform.Infrastructure.Reconciliation.ReconciliationScheduler>();
 
     builder.Services
         .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -91,7 +96,10 @@ try
         }
     }
 
+    app.UseForwardedHeadersConfiguration();
+    app.UseMiddleware<CorrelationIdMiddleware>();
     app.UseMiddleware<GlobalExceptionMiddleware>();
+    app.UseMiddleware<SecurityHeadersMiddleware>();
     app.UseSerilogRequestLogging();
 
     app.UseStatusCodePages(async statusCodeContext =>
@@ -133,15 +141,14 @@ try
 
     app.UseAuthentication();
     app.UseAuthorization();
+    app.UseAppRateLimiting();
 
-    app.MapControllers();
+    app.MapControllers().RequireRateLimiting("global");
 
     app.Run();
 }
 catch (HostAbortedException)
 {
-    // EF Core tools abort the design-time host after building the service provider.
-    // This is expected control flow, not a failure.
 }
 catch (Exception ex)
 {
