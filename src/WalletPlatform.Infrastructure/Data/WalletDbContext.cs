@@ -21,6 +21,7 @@ public sealed class WalletDbContext(DbContextOptions<WalletDbContext> options) :
     public DbSet<ReconciliationRun> ReconciliationRuns => Set<ReconciliationRun>();
     public DbSet<ReconciliationItem> ReconciliationItems => Set<ReconciliationItem>();
     public DbSet<PaymentReconciliation> PaymentReconciliations => Set<PaymentReconciliation>();
+    public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
