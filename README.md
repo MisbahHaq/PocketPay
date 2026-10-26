@@ -306,3 +306,7 @@ The ledger and transfers deliberately leave these for later weeks and they are *
 ## Design decisions
 
 See [docs/DECISIONS.md](docs/DECISIONS.md).
+
+## Reconciliation (Week 7)
+Daily reconciliation between platform and biller records.
+
