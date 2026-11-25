@@ -1,5 +1,10 @@
 ﻿# PayPocket
 A fintech-style digital wallet and bill-payment backend built with ASP.NET Core and PostgreSQL.
+<img width="1903" height="1079" alt="Screenshot 2026-11-24 123249" src="https://github.com/user-attachments/assets/f2208342-f325-4dc5-b8da-d1b60d176725" />
+<img width="1919" height="1079" alt="Screenshot 2026-11-24 123230" src="https://github.com/user-attachments/assets/4bb1fbf0-3acd-4118-8e8c-6d9838c70794" />
+<img width="1919" height="1079" alt="Screenshot 2026-11-24 123303" src="https://github.com/user-attachments/assets/8cb863c6-26c7-4160-839e-566b370dca92" />
+<img width="1906" height="1079" alt="Screenshot 2026-11-24 123318" src="https://github.com/user-attachments/assets/76a79a84-ba05-4c4f-b9cd-dd8fe66b61b4" />
+
 
 ## Why this project exists
 PayPocket exists as a learning/portfolio project to practice building a production-grade fintech backend: double-entry accounting, wallet transfers, idempotency, audit trails, and reconciliation. It demonstrates clean architecture, domain-driven design, and the operational concerns (rate limiting, audit, reconciliation) required of real payment systems.
