@@ -35,6 +35,8 @@ try
         .WriteTo.Console());
 
     builder.Services.AddApplication();
+    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddScoped<WalletPlatform.Application.Audit.IAuditContextAccessor, WalletPlatform.Api.Configuration.HttpAuditContextAccessor>();
     builder.Services.AddControllers(options =>
     {
         options.Filters.AddService<ValidationFilter>();
@@ -153,7 +155,7 @@ try
     app.UseAuthorization();
     app.UseAppRateLimiting();
 
-    app.MapControllers().RequireRateLimiting("global");
+    app.MapControllers();
 
     app.Run();
 }

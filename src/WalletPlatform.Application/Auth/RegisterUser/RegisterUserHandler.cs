@@ -1,5 +1,6 @@
 using WalletPlatform.Application.Abstractions.Persistence;
 using WalletPlatform.Application.Abstractions.Security;
+using WalletPlatform.Application.Audit;
 using WalletPlatform.Application.Common.Exceptions;
 using WalletPlatform.Domain.Entities;
 using WalletPlatform.Domain.Enums;
@@ -13,7 +14,8 @@ public sealed class RegisterUserHandler(
     IWalletNumberGenerator walletNumberGenerator,
     IPasswordHasher passwordHasher,
     IUnitOfWork unitOfWork,
-    IClock clock)
+    IClock clock,
+    IAuditService audit)
 {
     public async Task<RegisterUserResponse> HandleAsync(
         RegisterUserRequest request,
@@ -44,7 +46,12 @@ public sealed class RegisterUserHandler(
             ledgerAccounts.Add(LedgerAccount.CreateForWallet(wallet.Id, wallet.Currency, now));
             await unitOfWork.SaveChangesAsync(token);
 
-            return new RegisterUserResponse(user.Id, user.Email, wallet.Id, wallet.WalletNumber);
+            var response = new RegisterUserResponse(user.Id, user.Email, wallet.Id, wallet.WalletNumber);
+
+            await audit.RecordAsync("Auth.Register", "User", user.Id.ToString(), "Success",
+                new { user.Email, wallet.Id, wallet.WalletNumber }, token);
+
+            return response;
         }, cancellationToken);
     }
 }

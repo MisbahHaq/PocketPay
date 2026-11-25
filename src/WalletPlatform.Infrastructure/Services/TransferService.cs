@@ -1,4 +1,7 @@
+using System.Data;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Npgsql;
 using WalletPlatform.Application.Abstractions.Persistence;
 using WalletPlatform.Application.Abstractions.Security;
 using WalletPlatform.Application.Abstractions.Services;
@@ -7,7 +10,6 @@ using WalletPlatform.Application.Common.Exceptions;
 using WalletPlatform.Application.Transfers.Policies;
 using WalletPlatform.Domain.Entities;
 using WalletPlatform.Domain.Enums;
-using WalletPlatform.Domain.Exceptions;
 using WalletPlatform.Domain.ValueObjects;
 using WalletPlatform.Infrastructure.Persistence;
 
@@ -23,6 +25,8 @@ internal sealed class TransferService(
     IOptions<TransferOptions> options,
     IClock clock) : ITransferService
 {
+    private const int MaxConcurrencyRetries = 5;
+
     public async Task<Transfer> ExecuteAsync(
         Guid sourceWalletId,
         string destinationWalletNumber,
@@ -30,14 +34,16 @@ internal sealed class TransferService(
         string? note,
         CancellationToken cancellationToken = default)
     {
-        // Look up both wallets and their ledger accounts.
+        // Reference data lookups (wallets, ledger accounts) are safe outside the
+        // transaction — they are not mutated by a transfer. All mutable state
+        // (balances, daily totals) is checked INSIDE the serializable transaction
+        // while holding row locks, eliminating the check-then-act race.
         var sourceWallet = await walletRepository.FindByIdAsync(sourceWalletId, cancellationToken)
             ?? throw new NotFoundException("Source wallet not found.");
 
         var destinationWallet = await walletRepository.FindByWalletNumberAsync(destinationWalletNumber, cancellationToken)
             ?? throw new NotFoundException($"Destination wallet '{destinationWalletNumber}' not found.");
 
-        // 2. Destination exists and differs from source
         var destinationCheck = new DestinationWalletPolicy().Check(
             sourceWalletId, destinationWallet.Id, destinationWalletNumber);
         if (!destinationCheck.IsSuccess)
@@ -46,7 +52,6 @@ internal sealed class TransferService(
                 sourceWalletId, destinationWallet.Id, amount, note, destinationCheck, cancellationToken);
         }
 
-        // 3. Currency match
         var currencyCheck = new CurrencyMatchPolicy().Check(sourceWallet.Currency, destinationWallet.Currency);
         if (!currencyCheck.IsSuccess)
         {
@@ -54,74 +59,72 @@ internal sealed class TransferService(
                 sourceWalletId, destinationWallet.Id, amount, note, currencyCheck, cancellationToken);
         }
 
-        // Get ledger accounts
         var sourceAccount = await ledgerAccountRepository.FindByWalletIdAsync(sourceWalletId, cancellationToken)
             ?? throw new NotFoundException("Source ledger account not found.");
         var destinationAccount = await ledgerAccountRepository.FindByWalletIdAsync(destinationWallet.Id, cancellationToken)
             ?? throw new NotFoundException("Destination ledger account not found.");
 
-        // 4. Amount limits + available balance
-        var availableBalance = await ledgerService.GetBalanceAsync(sourceAccount.Id, cancellationToken)
-            ?? throw new NotFoundException("Source ledger account balance unavailable.");
-        var fee = new Money(options.Value.FlatFeeMinorUnits, amount.Currency);
-        var amountCheck = new AmountLimitsPolicy(options.Value).Check(amount, fee, availableBalance);
-        if (!amountCheck.IsSuccess)
+        for (var attempt = 0; ; attempt++)
         {
-            return await PersistFailedTransferAsync(
-                sourceWalletId, destinationWallet.Id, amount, note, amountCheck, cancellationToken);
+            try
+            {
+                return await ExecuteInSerializableTransactionAsync(
+                    sourceWallet, destinationWallet, sourceAccount, destinationAccount,
+                    amount, note, cancellationToken);
+            }
+            catch (DbUpdateException ex) when (IsTransientConcurrencyFailure(ex) && attempt < MaxConcurrencyRetries)
+            {
+                // Serializable isolation can abort one of two conflicting transactions
+                // with 40001 (serialization failure) or 40P01 (deadlock). Retrying is
+                // safe because the whole unit of work was rolled back — no partial
+                // transfer or journal entry can survive.
+                await Task.Delay(TimeSpan.FromMilliseconds(20 * (attempt + 1)), cancellationToken);
+            }
         }
+    }
 
-        // 5. Daily outgoing limit (completed transfers in last 24h)
-        var dailySum = await transferRepository.GetCompletedOutgoingSumAsync(sourceWalletId, clock.UtcNow.AddHours(-24), cancellationToken);
-        var dailyCheck = new DailyLimitPolicy(options.Value, clock).Check(dailySum, amount, fee);
-        if (!dailyCheck.IsSuccess)
-        {
-            return await PersistFailedTransferAsync(
-                sourceWalletId, destinationWallet.Id, amount, note, dailyCheck, cancellationToken);
-        }
-
-        // All policies passed — execute the transfer + journal entry in one transaction
+    private async Task<Transfer> ExecuteInSerializableTransactionAsync(
+        Wallet sourceWallet,
+        Wallet destinationWallet,
+        LedgerAccount sourceAccount,
+        LedgerAccount destinationAccount,
+        Money amount,
+        string? note,
+        CancellationToken cancellationToken)
+    {
         return await unitOfWork.ExecuteInTransactionAsync(async token =>
         {
-            // Acquire pessimistic locks on BOTH accounts in consistent order (by ID)
-            // This prevents:
-            // 1. TOCTOU: balance/daily-limit checks and posting happen while lock is held
-            // 2. Deadlocks: AccountLocker sorts IDs globally before locking
-            await accountLocker.LockAsync(sourceAccount.Id, destinationAccount.Id);
+            // Acquire pessimistic locks on BOTH accounts in consistent order (by ID).
+            // Combined with SERIALIZABLE isolation, this prevents TOCTOU races and
+            // deadlocks between concurrent transfers.
+            await accountLocker.LockAsync(token, sourceAccount.Id, destinationAccount.Id);
 
-            // Re-read the balance inside the transaction UNDER THE LOCK
+            // Re-read all mutable state UNDER THE LOCK.
             var currentBalance = await ledgerService.GetBalanceAsync(sourceAccount.Id, token)
                 ?? throw new NotFoundException("Source ledger account balance unavailable.");
 
-            var recheck = new AmountLimitsPolicy(options.Value).Check(amount, fee, currentBalance);
-            if (!recheck.IsSuccess)
+            var fee = new Money(options.Value.FlatFeeMinorUnits, amount.Currency);
+            var amountCheck = new AmountLimitsPolicy(options.Value).Check(amount, fee, currentBalance);
+            if (!amountCheck.IsSuccess)
             {
-                var failed = CreateFailedTransfer(sourceWalletId, destinationWallet.Id, amount, note, recheck);
-                await transferRepository.AddAsync(failed, token);
-                await unitOfWork.SaveChangesAsync(token);
-                return failed;
+                return await PersistFailedTransferInTransactionAsync(
+                    sourceWallet.Id, destinationWallet.Id, amount, note, amountCheck, token);
             }
 
-            // Re-check daily limit under the lock
-            var dailySum = await transferRepository.GetCompletedOutgoingSumAsync(sourceWalletId, clock.UtcNow.AddHours(-24), token);
-            var dailyRecheck = new DailyLimitPolicy(options.Value, clock).Check(dailySum, amount, fee);
-            if (!dailyRecheck.IsSuccess)
+            var dailySum = await transferRepository.GetCompletedOutgoingSumAsync(
+                sourceWallet.Id, clock.UtcNow.AddHours(-24), token);
+            var dailyCheck = new DailyLimitPolicy(options.Value, clock).Check(dailySum, amount, fee);
+            if (!dailyCheck.IsSuccess)
             {
-                var failed = CreateFailedTransfer(sourceWalletId, destinationWallet.Id, amount, note, dailyRecheck);
-                await transferRepository.AddAsync(failed, token);
-                await unitOfWork.SaveChangesAsync(token);
-                return failed;
+                return await PersistFailedTransferInTransactionAsync(
+                    sourceWallet.Id, destinationWallet.Id, amount, note, dailyCheck, token);
             }
 
-            // Build the journal entry:
-            // Debit source wallet for amount + fee
-            // Credit destination wallet for amount
-            // Credit SYSTEM_FEES for fee (if > 0)
             var journalEntry = JournalEntry.Create(
                 type: "Transfer",
                 createdBy: sourceWallet.UserId.ToString(),
                 createdAtUtc: clock.UtcNow,
-                reference: $"txn:{sourceWalletId}->{destinationWallet.Id}");
+                reference: $"txn:{sourceWallet.Id}->{destinationWallet.Id}");
 
             journalEntry.Debit(sourceAccount, amount + fee);
             journalEntry.Credit(destinationAccount, amount);
@@ -135,12 +138,10 @@ internal sealed class TransferService(
             }
 
             journalEntry.Build();
-            // Use internal method to participate in the outer transaction
             await ((LedgerService)ledgerService).PostAsyncInternal(journalEntry, token);
 
-            // Create and persist the transfer marked Completed
             var transfer = Transfer.Create(
-                sourceWalletId,
+                sourceWallet.Id,
                 destinationWallet.Id,
                 amount,
                 fee,
@@ -149,12 +150,24 @@ internal sealed class TransferService(
             transfer.Complete(journalEntry.Id, clock.UtcNow);
 
             await transferRepository.AddAsync(transfer, token);
-
-            // Save the transfer in the same transaction
             await unitOfWork.SaveChangesAsync(token);
 
             return transfer;
-        }, cancellationToken);
+        }, cancellationToken, IsolationLevel.Serializable);
+    }
+
+    private async Task<Transfer> PersistFailedTransferInTransactionAsync(
+        Guid sourceWalletId,
+        Guid destinationWalletId,
+        Money amount,
+        string? note,
+        PolicyResult result,
+        CancellationToken cancellationToken)
+    {
+        var failed = CreateFailedTransfer(sourceWalletId, destinationWalletId, amount, note, result);
+        await transferRepository.AddAsync(failed, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return failed;
     }
 
     private async Task<Transfer> PersistFailedTransferAsync(
@@ -183,4 +196,10 @@ internal sealed class TransferService(
         transfer.Fail(result.Code!);
         return transfer;
     }
+
+    private static bool IsTransientConcurrencyFailure(DbUpdateException exception) =>
+        exception.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.SerializationFailure or PostgresErrorCodes.DeadlockDetected,
+        };
 }

@@ -1,3 +1,4 @@
+using System.Data;
 using WalletPlatform.Application.Abstractions.Persistence;
 
 namespace WalletPlatform.UnitTests.Fakes;
@@ -24,9 +25,13 @@ internal sealed class FakeUnitOfWork : IUnitOfWork
 
     public async Task<T> ExecuteInTransactionAsync<T>(
         Func<CancellationToken, Task<T>> operation,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IsolationLevel isolationLevel = IsolationLevel.ReadCommitted)
     {
         TransactionCount++;
+        LastIsolationLevel = isolationLevel;
         return await operation(cancellationToken);
     }
+
+    public IsolationLevel LastIsolationLevel { get; private set; }
 }

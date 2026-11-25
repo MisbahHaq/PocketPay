@@ -13,13 +13,13 @@ PayPocket exists as a learning/portfolio project to practice building a producti
 - **.NET 10 / ASP.NET Core** — LTS runtime with mature ecosystem for APIs; controllers + middleware pipeline fit the layered design.
 - **EF Core 10 + Npgsql (PostgreSQL 17)** — strongly-typed ORM with migrations; Postgres gives reliable ACID transactions and JSONB support for audit/outbox payloads.
 - **Serilog** — structured logging with sinks/correlation for debugging payment flows.
-- **xUnit + FluentAssertions + FsCheck + Testcontainers** — unit/property tests plus real Postgres integration tests.
-- **Docker Compose + GitHub Actions** — reproducible local dev and CI.
+- **xUnit + FluentAssertions + FsCheck** — fast unit and property tests with no external services.
+- **GitHub Actions** — build and test on every push/PR.
 - **React + Vite (admin dashboard)** — fast dev server and component model for the ops/admin UI.
 - **Scalar / OpenAPI** — interactive API docs in dev only.
 
 
-**Current status: Weeks 1-8 in progress / scaffolding.** Core ledger, transfers, auth, and scaffolding for idempotency, audit, rate limiting, reconciliation, and admin dashboard are present.
+**Current status: Weeks 1-8 implemented.** Core ledger, transfers, auth, rate limiting, audit, bill payments, reconciliation, and the admin dashboard are in place. Verification is via fast unit/property tests only.
 
 ## Architecture
 
@@ -43,29 +43,29 @@ Dependencies point inward only. Domain has no dependencies, Application knows on
 | src/WalletPlatform.Domain | Entities, value objects, business rules |
 | src/WalletPlatform.Infrastructure | EF Core WalletDbContext, migrations, external adapters |
 | src/WalletPlatform.MockBiller | Mock biller service for bill payments/reconciliation |
-| tests/WalletPlatform.UnitTests | Fast, dependency-free tests |
-| tests/WalletPlatform.IntegrationTests | API tests against a real Postgres in Docker |
-| web/admin-dashboard | Vite + React admin dashboard (scaffolding) |
+| tests/WalletPlatform.UnitTests | Fast, dependency-free unit and property tests |
+| web/admin-dashboard | Vite + React admin dashboard |
 
 ## Tech stack
 
 - .NET 10 (LTS) / ASP.NET Core controllers
 - EF Core 10 + Npgsql (PostgreSQL 17)
 - Serilog
-- xUnit, FluentAssertions 6.x, FsCheck, Testcontainers
-- Docker Compose, GitHub Actions
+- xUnit, FluentAssertions 6.x, FsCheck
+- GitHub Actions
 - React + Vite
 
 ## Run locally
 
 `ash
 cp .env.example .env
-docker compose up -d
 dotnet tool restore
 dotnet restore
 dotnet ef database update --project src/WalletPlatform.Infrastructure --startup-project src/WalletPlatform.Api
 dotnet run --project src/WalletPlatform.Api
 `
+
+PostgreSQL 17 must be installed locally. The development connection string in `src/WalletPlatform.Api/appsettings.Development.json` defaults to `localhost:5432`, database `paypocket`, user `paypocket`; create that role/database or adjust the string to match your install.
 
 API on http://localhost:5178, Scalar on http://localhost:5178/scalar/v1 (dev). Admin dashboard on http://localhost:5173.
 
@@ -90,18 +90,11 @@ dotnet test
 - Auth (register/login/refresh), JWT, roles, password hashing, lockout
 - Double-entry ledger, derived balances, immutability, reversals, trial balance
 - Wallet transfers with state machine, fees, validation
-- Idempotency/concurrency scaffolding, account locker
-- Bill payments/outbox entities and mock biller
-- Audit with hash chaining wired
-- Rate limiting options/policies/extensions wired
+- Idempotency and transfer concurrency (ordered row locks, serializable isolation, retries)
+- Bill payments with double-entry posting, outbox, and biller outcome handling
+- Audit recorded across critical operations with actor/correlation metadata and hash chaining
+- Rate limiting enforced per policy (`auth`, `money`, `read`, `admin`)
+- Reconciliation import, matching, processing, endpoints, and scheduler
 - Security headers, correlation ID, forwarded headers
-- Reconciliation scaffolding (matching SQL, policies, service, controller, scheduler)
 - Functional admin dashboard UI (Vite + React + TypeScript) with Dashboard, Users, Transfers, Reconciliation, Audit, in-memory tokens, single-flight refresh, and full test suite
-
-### Remaining
-- Enforce rate limiting per policy
-- Apply audit across critical operations
-- Fix transfer concurrency (row locking/serializable)
-- Complete reconciliation matching/import/processing
-- Complete bill payments flows
-- Stabilize integration tests
+- Fast unit and property tests, with no external services required

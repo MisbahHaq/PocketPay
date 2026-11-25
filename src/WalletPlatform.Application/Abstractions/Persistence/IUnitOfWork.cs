@@ -1,3 +1,5 @@
+using System.Data;
+
 namespace WalletPlatform.Application.Abstractions.Persistence;
 
 public interface IUnitOfWork
@@ -6,5 +8,6 @@ public interface IUnitOfWork
 
     Task<T> ExecuteInTransactionAsync<T>(
         Func<CancellationToken, Task<T>> operation,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        IsolationLevel isolationLevel = IsolationLevel.ReadCommitted);
 }

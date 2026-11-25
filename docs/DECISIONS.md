@@ -26,13 +26,13 @@ Build a single deployable ASP.NET Core process organized into strongly separated
 The ledger demands strict ACID guarantees, correct concurrency under contention (row locks / serializable isolation), and reliable constraints (unique idempotency keys, non-negative balances). The workload is transactional, not analytical.
 
 **Decision**
-Use PostgreSQL 17 via EF Core 10 with the Npgsql provider, running locally in Docker Compose.
+Use PostgreSQL 17 via EF Core 10 with the Npgsql provider, running as a local PostgreSQL 17 installation.
 
 **Consequences**
 - Strong transactional guarantees and mature locking primitives for wallet transfers.
 - Native `numeric`/`decimal` support avoids floating-point money errors.
 - Rich indexing (partial, covering, unique) supports idempotency and outbox patterns.
-- Operationally heavier than an embedded database, which is acceptable because Docker makes local setup one command.
+- Operationally heavier than an embedded database, which is acceptable because the transactional guarantees justify a local PostgreSQL install.
 - EF Core abstraction keeps most code provider-agnostic, but migrations and some SQL will be Postgres-specific.
 
 ---
@@ -47,7 +47,7 @@ Four projects with dependencies pointing inward:
 `Api -> Application, Infrastructure`; `Infrastructure -> Application`; `Application -> Domain`; `Domain -> nothing`.
 
 **Consequences**
-- Domain and Application can be unit-tested in milliseconds without Docker or EF Core.
+- Domain and Application can be unit-tested in milliseconds without a database or EF Core runtime.
 - The compiler prevents accidental coupling (e.g. EF entities leaking into domain logic); a unit test also asserts the dependency direction.
 - Infrastructure implements interfaces defined in Application (Dependency Inversion), so adapters are swappable.
 - `Api` is the only composition root, keeping DI registration in one visible place.
@@ -251,15 +251,15 @@ All customer endpoints (`/api/wallets/*`, `/api/wallets/transfers/{id}`) return 
 
 ---
 
-## ADR-017: Known concurrency gap — TOCTOU on balance check
+## ADR-017: Resolved concurrency gap — TOCTOU on balance check
 
 **Context**
-The transfer service checks the source wallet's available balance *before* starting the transaction that posts the journal entry. Between the check and the commit, another concurrent transfer could also pass the check and post, resulting in an overdraft.
+The transfer service previously checked the source wallet's available balance *before* starting the transaction that posted the journal entry. Between the check and the commit, another concurrent transfer could also pass the check and post, resulting in an overdraft.
 
 **Decision**
-Document this as a known gap (ADR-017). A skipped integration test (`TransferConcurrencyTests`) demonstrates the race. Week 5 will fix it by acquiring a row lock (`SELECT ... FOR UPDATE`) on the source ledger account inside the transaction before re-checking the balance.
+All mutable state is now read inside one serializable transaction while holding ordered `FOR UPDATE` row locks on both ledger accounts. Transfer execution retries on Postgres serialization failures (`40001`) and deadlocks (`40P01`), so a rolled-back attempt never leaves a partial transfer.
 
 **Consequences**
-- Current implementation is **not safe under high concurrency** for the same wallet.
-- The gap is explicit, tested (skipped), and slated for Week 5.
-- Cost: potential overdraft under load; acceptable for a demo but not for production.
+- Concurrent transfers against the same wallet can no longer both pass a stale balance check.
+- Ordered lock acquisition prevents deadlocks between opposing transfers.
+- Cost: one extra lock round-trip per transfer and occasional retries under contention; acceptable for correctness.

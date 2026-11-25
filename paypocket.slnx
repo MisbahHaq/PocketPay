@@ -6,7 +6,6 @@
     <Project Path="src/WalletPlatform.Infrastructure/WalletPlatform.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/WalletPlatform.IntegrationTests/WalletPlatform.IntegrationTests.csproj" />
     <Project Path="tests/WalletPlatform.UnitTests/WalletPlatform.UnitTests.csproj" />
   </Folder>
 </Solution>

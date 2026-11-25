@@ -1,5 +1,3 @@
-using WalletPlatform.Domain.Entities;
-
 namespace WalletPlatform.Application.Abstractions.Persistence;
 
 /// <summary>
@@ -14,5 +12,5 @@ public interface IAccountLocker
     /// Accounts are locked in ascending ID order to prevent deadlocks.
     /// Call within a transaction - the lock is released when the transaction commits or rolls back.
     /// </summary>
-    Task LockAsync(params Guid[] ledgerAccountIds);
+    Task LockAsync(CancellationToken cancellationToken, params Guid[] ledgerAccountIds);
 }

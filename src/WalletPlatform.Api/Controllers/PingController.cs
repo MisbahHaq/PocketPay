@@ -1,9 +1,11 @@
 using System.Reflection;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace WalletPlatform.Api.Controllers;
 
 [ApiController]
+[EnableRateLimiting("read")]
 [Route("api/[controller]")]
 public sealed class PingController : ControllerBase
 {

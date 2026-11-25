@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using WalletPlatform.Api.Authorization;
 using WalletPlatform.Application.Ledger;
 using WalletPlatform.Application.Ledger.GetWalletBalance;
@@ -15,6 +16,7 @@ namespace WalletPlatform.Api.Controllers;
 
 [ApiController]
 [Authorize(Policy = AuthorizationPolicies.CustomerOnly)]
+[EnableRateLimiting("read")]
 [Route("api/wallets")]
 public sealed class WalletsController(
     GetWalletBalanceHandler getWalletBalanceHandler,
@@ -74,6 +76,7 @@ public sealed class WalletsController(
     }
 
     [HttpPost("transfers")]
+    [EnableRateLimiting("money")]
     [ProducesResponseType<TransferSummary>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]

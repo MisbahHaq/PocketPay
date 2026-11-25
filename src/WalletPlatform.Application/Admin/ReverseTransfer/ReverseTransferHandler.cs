@@ -2,6 +2,7 @@ using FluentValidation;
 using WalletPlatform.Application.Abstractions.Persistence;
 using WalletPlatform.Application.Abstractions.Security;
 using WalletPlatform.Application.Abstractions.Services;
+using WalletPlatform.Application.Audit;
 using WalletPlatform.Application.Common;
 using WalletPlatform.Application.Common.Exceptions;
 using WalletPlatform.Application.Transfers;
@@ -30,7 +31,8 @@ public sealed class ReverseTransferHandler(
     ITransferRepository transfers,
     ILedgerService ledgerService,
     IUnitOfWork unitOfWork,
-    IClock clock)
+    IClock clock,
+    IAuditService audit)
 {
     public async Task<TransferDetail> HandleAsync(
         Guid transferId,
@@ -63,6 +65,11 @@ public sealed class ReverseTransferHandler(
 
         // Save in the same transaction (ReverseAsync already uses unitOfWork internally)
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        await audit.RecordAsync(
+            "Transfer.Reverse", "Transfer", transfer.Id.ToString(), "Success",
+            new { reversal.Id, reversedBy, request.Description },
+            cancellationToken);
 
         return MapToDetail(transfer);
     }

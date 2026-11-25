@@ -7,7 +7,7 @@
 ### 1. Architecture & Layering
 **Q: How is the solution structured and why?**
 
-**A:** Four projects with strict inward dependencies: `Api → Application, Infrastructure`; `Infrastructure → Application`; `Application → Domain`; `Domain → nothing`. The compiler enforces this via project references. `Api` is the only composition root. `Domain` has zero external dependencies — pure business logic. `Application` defines use cases and interfaces (ports). `Infrastructure` implements those interfaces (adapters: EF Core, JWT, etc.). This makes `Domain`/`Application` unit-testable in milliseconds without Docker or EF Core.
+**A:** Four projects with strict inward dependencies: `Api → Application, Infrastructure`; `Infrastructure → Application`; `Application → Domain`; `Domain → nothing`. The compiler enforces this via project references. `Api` is the only composition root. `Domain` has zero external dependencies — pure business logic. `Application` defines use cases and interfaces (ports). `Infrastructure` implements those interfaces (adapters: EF Core, JWT, etc.). This makes `Domain`/`Application` unit-testable in milliseconds without a database or EF Core runtime.
 
 ---
 
@@ -43,10 +43,10 @@ Debits (1,025) = Credits (1,025). If fee = 0, only two postings. The fee goes to
 
 ---
 
-### 6. Concurrency & Known Gap
-**Q: Is the transfer implementation safe under concurrent load? What's the gap?**
+### 6. Concurrency & Locking
+**Q: Is the transfer implementation safe under concurrent load? How?**
 
-**A:** **Not safe under high concurrency for the same wallet.** The service checks available balance *before* starting the transaction that posts the journal entry (TOCTOU). Two concurrent transfers from the same wallet can both pass the check, then both post, resulting in an overdraft. A skipped integration test (`TransferConcurrencyTests`) demonstrates this race. Week 5 will fix it by acquiring a row lock (`SELECT ... FOR UPDATE`) on the source ledger account inside the transaction before re-checking the balance.
+**A:** **Yes, for the same wallet.** All mutable state is checked inside one serializable transaction while holding ordered `FOR UPDATE` row locks on both source and destination ledger accounts. Ordered lock acquisition (by account ID) prevents deadlocks between opposing transfers. If Postgres aborts a transaction with a serialization failure (`40001`) or deadlock (`40P01`), the whole unit of work is rolled back and the transfer is retried, so no partial posting can survive.
 
 ---
 
@@ -75,7 +75,6 @@ Debits (1,025) = Credits (1,025). If fee = 0, only two postings. The fee goes to
 | Controllers (WalletsController, AdminController) | `src/WalletPlatform.Api/Controllers/*.cs` |
 | Auth middleware, policies, ProblemDetails mapping | `src/WalletPlatform.Api/Authorization/`, `Middleware/`, `Validation/` |
 | Unit tests (domain + policy + property-based) | `tests/WalletPlatform.UnitTests/` |
-| Integration tests (API + ledger + auth) | `tests/WalletPlatform.IntegrationTests/` |
 
 ---
 
@@ -98,12 +97,10 @@ dotnet run --project src/WalletPlatform.Api
 
 ## Known Gaps (explicitly documented)
 
-| Gap | Where | Fix Target |
+| Gap | Where | Notes |
 | --- | --- | --- |
-| Idempotency keys | HTTP layer has no request de-duplication | Week 5 |
-| Concurrency (TOCTOU on balance) | `TransferService.ExecuteAsync` checks balance outside transaction | Week 5 (row lock) |
-| Biller payments | `SYSTEM_BILLER_SETTLEMENT` seeded but unused | Week 6 |
-| Balance snapshots | Sum-on-read; no materialized views | Later |
+| Balance snapshots | Sum-on-read; no materialized views | Acceptable at current scale |
+| Database-backed integration tests | No integration-test project in this repo | Verification is unit/property only |
 
 ---
 
@@ -127,4 +124,4 @@ dotnet run --project src/WalletPlatform.Api
 | 014 | Failed transfers persisted for audit |
 | 015 | Wallet-number addressing + masked lookup |
 | 016 | 404 over 403 for other users' resources |
-| 017 | Known concurrency gap (TOCTOU) |
+| 017 | Resolved concurrency gap (TOCTOU) |

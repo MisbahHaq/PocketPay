@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using WalletPlatform.Api.Authorization;
 using WalletPlatform.Application.Users.GetCurrentUser;
 
@@ -7,6 +8,7 @@ namespace WalletPlatform.Api.Controllers;
 
 [ApiController]
 [Authorize]
+[EnableRateLimiting("read")]
 [Route("api/users")]
 public sealed class UsersController(GetCurrentUserHandler getCurrentUserHandler) : ControllerBase
 {

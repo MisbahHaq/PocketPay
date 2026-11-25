@@ -1,5 +1,6 @@
 using WalletPlatform.Application.Abstractions.Persistence;
 using WalletPlatform.Application.Abstractions.Security;
+using WalletPlatform.Application.Audit;
 using WalletPlatform.Application.Common.Exceptions;
 using WalletPlatform.Domain.Entities;
 using WalletPlatform.Domain.Enums;
@@ -18,7 +19,8 @@ public sealed class FundWalletHandler(
     IWalletRepository wallets,
     ILedgerAccountRepository ledgerAccounts,
     ILedgerService ledger,
-    IClock clock)
+    IClock clock,
+    IAuditService audit)
 {
     public async Task<FundWalletResponse> HandleAsync(
         Guid walletId,
@@ -49,6 +51,11 @@ public sealed class FundWalletHandler(
             .Build();
 
         await ledger.PostAsync(entry, cancellationToken);
+
+        await audit.RecordAsync(
+            "Wallet.Fund", "Wallet", wallet.Id.ToString(), "Success",
+            new { entry.Id, amount.MinorUnits, wallet.Currency },
+            cancellationToken);
 
         return new FundWalletResponse(entry.Id, wallet.Id, amount.MinorUnits, wallet.Currency.ToString());
     }

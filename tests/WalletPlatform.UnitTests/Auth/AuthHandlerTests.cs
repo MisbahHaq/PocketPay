@@ -24,9 +24,10 @@ public sealed class RegisterUserHandlerTests
     private readonly FakePasswordHasher _passwordHasher = new();
     private readonly FakeUnitOfWork _unitOfWork = new();
     private readonly FakeClock _clock = new(Now);
+    private readonly FakeAuditService _audit = new();
 
     private RegisterUserHandler CreateHandler() =>
-        new(_users, _wallets, _ledgerAccounts, _walletNumbers, _passwordHasher, _unitOfWork, _clock);
+        new(_users, _wallets, _ledgerAccounts, _walletNumbers, _passwordHasher, _unitOfWork, _clock, _audit);
 
     [Fact]
     public async Task Handle_creates_user_and_wallet_inside_a_transaction()
@@ -95,9 +96,10 @@ public sealed class LoginHandlerTests
     private readonly FakeTokenService _tokenService = new();
     private readonly FakeUnitOfWork _unitOfWork = new();
     private readonly FakeClock _clock = new(Now);
+    private readonly FakeAuditService _audit = new();
 
     private LoginHandler CreateHandler() =>
-        new(_users, _refreshTokens, _passwordHasher, _tokenService, _unitOfWork, _clock);
+        new(_users, _refreshTokens, _passwordHasher, _tokenService, _unitOfWork, _clock, _audit);
 
     private void SeedUser(string password = "Str0ng!Pass1") =>
         _users.Add(User.Create("user@example.com", _passwordHasher.Hash(password), Role.Customer, Now));

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using WalletPlatform.Application.Auth;
 using WalletPlatform.Application.Auth.Login;
 using WalletPlatform.Application.Auth.Refresh;
@@ -9,6 +10,7 @@ namespace WalletPlatform.Api.Controllers;
 
 [ApiController]
 [AllowAnonymous]
+[EnableRateLimiting("auth")]
 [Route("api/auth")]
 public sealed class AuthController(
     RegisterUserHandler registerUserHandler,

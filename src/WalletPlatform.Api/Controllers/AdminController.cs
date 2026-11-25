@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using WalletPlatform.Api.Authorization;
 using WalletPlatform.Application.Admin.FundWallet;
@@ -15,6 +16,7 @@ namespace WalletPlatform.Api.Controllers;
 
 [ApiController]
 [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+[EnableRateLimiting("admin")]
 [Route("api/admin")]
 public sealed class AdminController(
     GetUsersPageHandler getUsersPageHandler,

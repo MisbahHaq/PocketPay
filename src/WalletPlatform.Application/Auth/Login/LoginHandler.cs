@@ -1,5 +1,6 @@
 using WalletPlatform.Application.Abstractions.Persistence;
 using WalletPlatform.Application.Abstractions.Security;
+using WalletPlatform.Application.Audit;
 using WalletPlatform.Application.Common.Exceptions;
 using WalletPlatform.Domain.Entities;
 
@@ -11,7 +12,8 @@ public sealed class LoginHandler(
     IPasswordHasher passwordHasher,
     ITokenService tokenService,
     IUnitOfWork unitOfWork,
-    IClock clock)
+    IClock clock,
+    IAuditService audit)
 {
     // Unknown emails, wrong passwords and lockouts all return the same message so
     // that the endpoint cannot be used to enumerate registered accounts.
@@ -24,6 +26,8 @@ public sealed class LoginHandler(
 
         if (user is null || user.IsLockedOut(now))
         {
+            await audit.RecordAsync("Auth.Login", "User", request.Email, "Failed",
+                new { Reason = user is null ? "UnknownEmail" : "LockedOut" }, cancellationToken);
             throw new UnauthorizedException(InvalidCredentialsMessage);
         }
 
@@ -31,6 +35,8 @@ public sealed class LoginHandler(
         {
             user.RegisterFailedLogin(now);
             await unitOfWork.SaveChangesAsync(cancellationToken);
+            await audit.RecordAsync("Auth.Login", "User", user.Id.ToString(), "Failed",
+                new { Reason = "InvalidPassword" }, cancellationToken);
             throw new UnauthorizedException(InvalidCredentialsMessage);
         }
 
@@ -46,6 +52,9 @@ public sealed class LoginHandler(
             refreshToken.ExpiresAtUtc));
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        await audit.RecordAsync("Auth.Login", "User", user.Id.ToString(), "Success",
+            ct: cancellationToken);
 
         return new AuthResponse(
             accessToken.Value,

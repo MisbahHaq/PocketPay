@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using WalletPlatform.Application.Abstractions.Persistence;
-using WalletPlatform.Domain.Entities;
 using WalletPlatform.Infrastructure.Data;
 
 namespace WalletPlatform.Infrastructure.Persistence;
@@ -12,7 +11,7 @@ namespace WalletPlatform.Infrastructure.Persistence;
 /// </summary>
 internal sealed class AccountLocker(WalletDbContext dbContext) : IAccountLocker
 {
-    public async Task LockAsync(params Guid[] ledgerAccountIds)
+    public async Task LockAsync(CancellationToken cancellationToken, params Guid[] ledgerAccountIds)
     {
         if (ledgerAccountIds is null || ledgerAccountIds.Length == 0)
         {
@@ -22,18 +21,17 @@ internal sealed class AccountLocker(WalletDbContext dbContext) : IAccountLocker
         // Sort by ID to ensure consistent lock ordering and prevent deadlocks
         var sortedIds = ledgerAccountIds.Distinct().OrderBy(id => id).ToArray();
 
-        // Build the FOR UPDATE query
-        // We select from LedgerAccounts where Id is in the list, with FOR UPDATE
-        var idsList = string.Join(",", sortedIds.Select(id => $"'{id}'"));
-        
+        // Parameterized FOR UPDATE query — avoids SQL injection and lets Postgres
+        // reuse the prepared statement. Participants participate in the current transaction.
+        var parameters = sortedIds.Select((id, index) => $"@p{index}");
         var sql = $"""
-            SELECT "Id" FROM "LedgerAccounts" 
-            WHERE "Id" IN ({idsList})
+            SELECT "Id" FROM "LedgerAccounts"
+            WHERE "Id" IN ({string.Join(", ", parameters)})
+            ORDER BY "Id"
             FOR UPDATE
             """;
 
-        // Execute the raw SQL to acquire locks
-        // This participates in the current EF Core transaction
-        await dbContext.Database.ExecuteSqlRawAsync(sql);
+        var values = sortedIds.Select(id => (object)id).ToArray();
+        await dbContext.Database.ExecuteSqlRawAsync(sql, values, cancellationToken);
     }
 }

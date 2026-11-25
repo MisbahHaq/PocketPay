@@ -1,5 +1,6 @@
 using WalletPlatform.Application.Abstractions.Persistence;
 using WalletPlatform.Application.Abstractions.Services;
+using WalletPlatform.Application.Audit;
 using WalletPlatform.Application.Common.Exceptions;
 using WalletPlatform.Application.Transfers;
 using WalletPlatform.Domain.Entities;
@@ -14,7 +15,8 @@ namespace WalletPlatform.Application.Transfers.CreateTransfer;
 /// </summary>
 public sealed class CreateTransferHandler(
     IWalletRepository wallets,
-    ITransferService transferService)
+    ITransferService transferService,
+    IAuditService audit)
 {
     public async Task<TransferSummary> HandleAsync(
         Guid requestingUserId,
@@ -26,6 +28,9 @@ public sealed class CreateTransferHandler(
 
         if (sourceWallet is null || sourceWallet.UserId != requestingUserId)
         {
+            await audit.RecordAsync(
+                "Transfer.Create", "Wallet", request.SourceWalletId.ToString(), "Denied",
+                new { Reason = "Source wallet not found or not owned by requester" }, cancellationToken);
             throw new NotFoundException("Source wallet not found.");
         }
 
@@ -35,6 +40,22 @@ public sealed class CreateTransferHandler(
             request.DestinationWalletNumber,
             amount,
             request.Note,
+            cancellationToken);
+
+        await audit.RecordAsync(
+            "Transfer.Create",
+            "Transfer",
+            transfer.Id.ToString(),
+            transfer.Status.ToString(),
+            new
+            {
+                transfer.SourceWalletId,
+                transfer.DestinationWalletId,
+                AmountMinorUnits = transfer.Amount.MinorUnits,
+                FeeMinorUnits = transfer.Fee.MinorUnits,
+                Currency = transfer.Amount.Currency,
+                transfer.FailureReason,
+            },
             cancellationToken);
 
         return MapToSummary(transfer);

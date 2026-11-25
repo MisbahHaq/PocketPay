@@ -67,6 +67,8 @@ public static class DependencyInjection
         services.AddScoped<IIdempotencyService, IdempotencyService>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IAuditService, AuditService>();
+        services.AddScoped<BillPaymentService>();
+        services.AddScoped<BillPaymentOutcomeHandler>();
         services.AddScoped<WalletPlatform.Application.Reconciliation.IReconciliationService, WalletPlatform.Infrastructure.Reconciliation.ReconciliationService>();
 
         return services;
